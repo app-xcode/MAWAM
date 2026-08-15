@@ -1,0 +1,21 @@
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f8f8f8;
+  font-family: 'Inter', sans-serif;
+
+  display: flex;
+  justify-content: center;
+}
+
+#root {
+  width: 100%;
+  max-width: 500px;
+  min-height: 100dvh;
+  background: white;
+}
+
+::selection {
+  background-color: #000000c2; 
+  color: #ffffff;           
+}

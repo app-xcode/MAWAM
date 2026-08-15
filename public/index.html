@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" id="theme-color" content="#000000" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      id="status-bar-color"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="description"
+      content="MAWAM (Market Bawang Merah) adalah platform digital yang menghubungkan petani dan distributor bawang merah dalam satu ekosistem terintegrasi. Menyediakan informasi harga real-time, pemesanan, pembayaran digital, dan pelacakan pengiriman."
+    />
+    <meta property="og:title" content="MAWAM - Market Bawang Merah" />
+    <meta
+      property="og:description"
+      content="Terhubung langsung dengan petani bawang merah. Pantau harga real-time, lakukan pemesanan, pembayaran digital, dan kelola distribusi dalam satu platform terpadu."
+    />
+    <meta
+      property="og:image"
+      content="https://mawam.expo.app/icon-192x192.png"
+    />
+    <meta property="og:url" content="https://mawam.expo.app" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="MAWAM" />
+    <meta
+      name="keywords"
+      content="bawang merah, market bawang merah, petani, distributor, harga bawang, MAWAM, pertanian digital"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://mawam.expo.app/icon-512x512.png"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://mawam.expo.app/splash-1125x2436.png"
+      media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      href="https://mawam.expo.app/icon-192x192.png"
+      sizes="192x192"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="https://mawam.expo.app/icon-192x192.png"
+      sizes="192x192"
+    />
+    <link rel="manifest" href="/manifest.json" />
+    <title>%WEB_TITLE%</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((registration) => {
+              console.log(
+                "Service Worker registered with scope:",
+                registration.scope,
+              );
+            })
+            .catch((error) => {
+              console.error("Service Worker registration failed:", error);
+            });
+        });
+      }
+    </script>
+    <style>
+      @keyframes show {
+        0% {
+          opacity: 0;
+        }
+
+        100% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript> You need to enable JavaScript to run this app. </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root">
+      <div
+        style="
+          width: 100%;
+          height: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          opacity: 0;
+          animation: show 1s 5s forwards;
+        "
+      >
+        <div style="text-align: center">
+          <h4>Sedang Memuat...</h4>
+          <a
+            href="/?reload"
+            style="
+              text-decoration: unset;
+              padding: 10px 20px;
+              background: #000000;
+              color: #fff;
+              display: block;
+              border-radius: 8px;
+            "
+            >Muat Ulang</a
+          >
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

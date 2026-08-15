@@ -1,0 +1,393 @@
+[
+  {
+    "code": "200",
+    "message": "Successfully received data",
+    "data": [
+      {
+        "id": "city_53.01",
+        "type": "city",
+        "label": "Kupang, Nusa Tenggara Timur"
+      },
+      {
+        "id": "city_53.71",
+        "type": "city",
+        "label": "Kupang, Nusa Tenggara Timur"
+      },
+      {
+        "id": "district_53.01.05",
+        "type": "district",
+        "label": "Kupang Barat, Kupang"
+      },
+      {
+        "id": "district_53.01.08",
+        "type": "district",
+        "label": "Kupang Tengah, Kupang"
+      },
+      {
+        "id": "district_53.01.06",
+        "type": "district",
+        "label": "Kupang Timur, Kupang"
+      },
+      {
+        "id": "district_71.06.06",
+        "type": "district",
+        "label": "Likupang Barat, Minahasa Utara"
+      },
+      {
+        "id": "district_71.06.10",
+        "type": "district",
+        "label": "Likupang Selatan, Minahasa Utara"
+      },
+      {
+        "id": "district_71.06.07",
+        "type": "district",
+        "label": "Likupang Timur, Minahasa Utara"
+      },
+      {
+        "id": "district_21.71.03",
+        "type": "district",
+        "label": "Sekupang, Batam"
+      },
+      {
+        "id": "village_63.07.04.2003",
+        "type": "village",
+        "label": "Banua Kupang, Labuan Amas Utara, Hulu Sungai Tengah (71362)"
+      },
+      {
+        "id": "village_35.78.21.1002",
+        "type": "village",
+        "label": "Dukuh Kupang, Dukuh Pakis, Surabaya (60225)"
+      },
+      {
+        "id": "village_82.04.25.2002",
+        "type": "village",
+        "label": "Kakupang, Kepulauan Joronga, Halmahera Selatan (97786)"
+      },
+      {
+        "id": "village_82.04.15.2009",
+        "type": "village",
+        "label": "Kukupang, Kasiruta Barat, Halmahera Selatan (97790)"
+      },
+      {
+        "id": "village_35.16.16.2009",
+        "type": "village",
+        "label": "Kupang, Jetis, Mojokerto (61352)"
+      },
+      {
+        "id": "village_63.05.04.1002",
+        "type": "village",
+        "label": "Kupang, Tapin Utara, Tapin (71113)"
+      },
+      {
+        "id": "village_35.11.17.2003",
+        "type": "village",
+        "label": "Kupang, Pakem, Bondowoso (68253)"
+      },
+      {
+        "id": "village_35.11.07.2003",
+        "type": "village",
+        "label": "Kupang, Curahdami, Bondowoso (68250)"
+      },
+      {
+        "id": "village_33.22.10.1006",
+        "type": "village",
+        "label": "Kupang, Ambarawa, Semarang (50612)"
+      },
+      {
+        "id": "village_33.10.13.2019",
+        "type": "village",
+        "label": "Kupang, Karangdowo, Klaten (57464)"
+      },
+      {
+        "id": "village_16.04.22.2008",
+        "type": "village",
+        "label": "Kupang, Pagar Gunung, Lahat (31460)"
+      }
+    ]
+  },
+
+  {
+    "code": "200",
+    "message": "Successfully calculated cost",
+    "data": {
+      "origin": {
+        "id": "dist_36.72.08",
+        "label": "Citangkil, Cilegon"
+      },
+      "destination": {
+        "id": "dist_32.73.25",
+        "label": "Cibiru, Bandung"
+      },
+      "weight": "1",
+      "results": [
+        {
+          "code": "ninja",
+          "name": "Ninja Van",
+          "costs": [
+            {
+              "code": "ninja",
+              "name": "Ninja Van",
+              "service": "STANDARD",
+              "type": "Standard Service",
+              "price": "12000",
+              "estimated": "- hari"
+            }
+          ]
+        }
+      ]
+    }
+  },
+
+  {
+    "code": "200",
+    "message": "Successfully calculated cost",
+    "data": {
+      "origin": {
+        "id": "village_32.16.03.2004",
+        "label": "Sukawangi, Sukawangi, Bekasi (17620)"
+      },
+      "destination": {
+        "id": "village_53.71.04.1013",
+        "label": "Kayu Putih, Oebobo, Kupang (85111)"
+      },
+      "weight": "1000",
+      "results": [
+        {
+          "code": "jne",
+          "name": "JNE Express",
+          "costs": [
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "REG",
+              "type": "Document/Paket",
+              "price": "86000000",
+              "estimated": "2-3 hari"
+            },
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "JTR&gt;200",
+              "type": "Paket",
+              "price": "5300000",
+              "estimated": "14-20 hari"
+            },
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "JTR&gt;130",
+              "type": "Paket",
+              "price": "4300000",
+              "estimated": "14-20 hari"
+            },
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "JTR&lt;130",
+              "type": "Paket",
+              "price": "3750000",
+              "estimated": "14-20 hari"
+            },
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "JTR",
+              "type": "Paket",
+              "price": "9000000",
+              "estimated": "14-20 hari"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "code": "200",
+    "message": "Successfully calculated cost",
+    "data": {
+      "origin": {
+        "id": "village_32.16.03.2004",
+        "label": "Sukawangi, Sukawangi, Bekasi (17620)"
+      },
+      "destination": {
+        "id": "village_53.71.04.1013",
+        "label": "Kayu Putih, Oebobo, Kupang (85111)"
+      },
+      "weight": "1000",
+      "results": [
+        {
+          "code": "sicepat",
+          "name": "SiCepat",
+          "costs": [
+            {
+              "code": "sicepat",
+              "name": "SiCepat",
+              "service": "REG",
+              "type": "Pengiriman Standar",
+              "price": "44000000",
+              "estimated": "3 - 5 hari"
+            },
+            {
+              "code": "sicepat",
+              "name": "SiCepat",
+              "service": "HALU",
+              "type": "Pengiriman Hemat",
+              "price": "42000000",
+              "estimated": "13 - 16 hari"
+            },
+            {
+              "code": "sicepat",
+              "name": "SiCepat",
+              "service": "GOKIL",
+              "type": "Pengiriman Paket Besar",
+              "price": "16500000",
+              "estimated": "14 - 16 hari"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "code": "200",
+    "message": "Successfully calculated cost",
+    "data": {
+      "origin": {
+        "id": "village_32.16.03.2004",
+        "label": "Sukawangi, Sukawangi, Bekasi (17620)"
+      },
+      "destination": {
+        "id": "village_53.71.04.1013",
+        "label": "Kayu Putih, Oebobo, Kupang (85111)"
+      },
+      "weight": "1000",
+      "results": []
+    }
+  },
+  {
+    "code": "200",
+    "message": "Successfully calculated cost",
+    "data": {
+      "origin": {
+        "id": "village_52.72.05.1001",
+        "label": "Monggonao, Mpunda, Bima (84111)"
+      },
+      "destination": {
+        "id": "village_53.71.04.1013",
+        "label": "Kayu Putih, Oebobo, Kupang (85111)"
+      },
+      "weight": "1000",
+      "results": [
+        {
+          "code": "jne",
+          "name": "JNE Express",
+          "costs": [
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "REG",
+              "type": "Document/Paket",
+              "price": "62000000",
+              "estimated": "3-5 hari"
+            },
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "JTR&gt;200",
+              "type": "Paket",
+              "price": "4100000",
+              "estimated": "10-11 hari"
+            },
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "JTR&gt;130",
+              "type": "Paket",
+              "price": "3900000",
+              "estimated": "10-11 hari"
+            },
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "JTR&lt;130",
+              "type": "Paket",
+              "price": "2800000",
+              "estimated": "11-15 hari"
+            },
+            {
+              "code": "jne",
+              "name": "JNE Express",
+              "service": "JTR",
+              "type": "Paket",
+              "price": "23000000",
+              "estimated": "10-11 hari"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "code": "200",
+    "message": "Successfully calculated cost",
+    "data": {
+      "origin": {
+        "id": "village_52.72.05.1001",
+        "label": "Monggonao, Mpunda, Bima (84111)"
+      },
+      "destination": {
+        "id": "village_53.71.04.1013",
+        "label": "Kayu Putih, Oebobo, Kupang (85111)"
+      },
+      "weight": "1000",
+      "results": [
+        {
+          "code": "pos",
+          "name": "POS Indonesia",
+          "costs": [
+            {
+              "code": "pos",
+              "name": "POS Indonesia",
+              "service": "Pos Dangerous Goods",
+              "type": "Pos Dangerous Goods",
+              "price": "68997500",
+              "estimated": "4 hari"
+            },
+            {
+              "code": "pos",
+              "name": "POS Indonesia",
+              "service": "Pos Kargo Barang",
+              "type": "Pos Kargo Barang",
+              "price": "8000000",
+              "estimated": "21 hari"
+            },
+            {
+              "code": "pos",
+              "name": "POS Indonesia",
+              "service": "Pos Kargo Motor",
+              "type": "Pos Kargo Motor",
+              "price": "5200000",
+              "estimated": "4 hari"
+            },
+            {
+              "code": "pos",
+              "name": "POS Indonesia",
+              "service": "Pos Reguler",
+              "type": "Pos Reguler",
+              "price": "35000000",
+              "estimated": "4 hari"
+            },
+            {
+              "code": "pos",
+              "name": "POS Indonesia",
+              "service": "Pos Valuable Goods",
+              "type": "Pos Valuable Goods",
+              "price": "68997500",
+              "estimated": "4 hari"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

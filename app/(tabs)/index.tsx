@@ -1,98 +1,166 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import ParallaxScrollView from '@/components/parallax-scroll-view'
+import { ThemedText } from '@/components/themed-text'
+import { ThemedView } from '@/components/themed-view'
+import BawangIcon from '@/components/ui/BawangIcon'
+import { ImageLoad } from '@/components/ui/Imageload'
+import { Colors, Fonts } from '@/constants/theme'
+import { useTheme } from '@/utils/theme'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import { Link } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { TouchableOpacity, StyleSheet } from 'react-native'
+const ColorDark = Colors['light'].tint;
+const ColorLight = Colors['dark'].tint;
+const images = [
+  require('@/assets/images/h1.webp'),
+  require('@/assets/images/h2.webp'),
+  require('@/assets/images/h3.webp'),
+];
 
 export default function HomeScreen() {
+  const { isDark, toggleTheme } = useTheme();
+  const colorScheme = isDark ? 'dark' : 'light';
+  const iconColor = Colors[colorScheme ?? 'light'];
+
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fitur = [
+    "Menghubungkan petani dan distributor dalam satu ekosistem digital terintegrasi",
+    "Menyediakan informasi harga dan kualitas produk secara real-time",
+    "Mendukung pemesanan, pembayaran digital, dan pelacakan pengiriman",
+    "Menyediakan dashboard penjualan, sehingga petani dapat melakukan analisis usaha",
+  ];
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
+      headerBackgroundColor={{ light: ColorDark, dark: '#131313ff' }}
       headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+        <ImageLoad
+          source={images[index]}
+          style={styles.headerImage}
         />
-      }>
+      }
+    >
+      {/* Title */}
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
+        <ImageLoad
+          source={
+            isDark ? require('@/assets/images/splash-icon-light.png') : require('@/assets/images/splash-icon-dark.png')
+          }
+          style={{
+            width: 150, height: 30, backgroundColor: 'transparent',
+            alignSelf: 'center',
+          }}
+        />
+        <ThemedText type="title" style={{ fontFamily: Fonts.rounded, textAlign: 'center' }}>Market Bawang Merah</ThemedText>
+        <ThemedText style={styles.subtitle}>
+          Kamu dapat terhubung langsung ke petani bawang Merah.
         </ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+      <Link href="/produk" asChild>
+        <TouchableOpacity style={styles.buttonPrimary}>
+         <BawangIcon width={16} height={16} color={ColorLight} bgColor={ColorDark} />
+          <ThemedText style={styles.buttonText} numberOfLines={1}>
+            Jelajahi Produk
+          </ThemedText>
+        </TouchableOpacity>
+      </Link>
+
+      <Link href="/akun" asChild>
+        <TouchableOpacity style={styles.buttonSecondary}>
+          {<Ionicons size={16} name="person" color={ColorDark} />}
+          <ThemedText style={styles.buttonTextDark} numberOfLines={1}>
+            Akun Saya
+          </ThemedText>
+        </TouchableOpacity>
+      </Link>
+      {/* Info */}
+
+      {fitur.map((item, index) => (
+        <ThemedView key={index} style={{ flexDirection: 'row', marginVertical: 0 }}>
+          <ThemedText style={{ marginRight: 6 }}>•</ThemedText>
+          <ThemedText style={{ flex: 1, textAlign: 'justify' }}>
+            {item}
+          </ThemedText>
+        </ThemedView>
+      ))}
+      <TouchableOpacity style={!isDark ? styles.buttonSecondary : styles.buttonPrimary} onPress={toggleTheme}>
+        {<Ionicons size={16} name={!isDark ? 'moon' : 'sunny'} color={iconColor.text} />}
+        <ThemedText style={!isDark ? styles.buttonTextDark : styles.buttonText}>
+          {!isDark ? 'Dark' : 'Light'}
         </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
+      </TouchableOpacity>
     </ParallaxScrollView>
-  );
+  )
 }
 
+
 const styles = StyleSheet.create({
+  headerImage: {
+    width: '100%',
+    height: 250,
+    alignSelf: 'center',
+    opacity: 0.8,
+    backgroundColor: 'trasnparent',
+  },
+
   titleContainer: {
-    flexDirection: 'row',
+    marginBottom: 4,
+  },
+
+  subtitle: {
+    opacity: 0.7,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+
+  buttonPrimary: {
+    backgroundColor: ColorDark,
+    paddingVertical: 13,
+    borderRadius: 13,
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 4,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignContent: 'center',
+    gap: 4,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  buttonSecondary: {
+    backgroundColor: '#ecf0f1',
+    paddingVertical: 13,
+    borderRadius: 13,
+    alignItems: 'center',
+    marginBottom: 4,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignContent: 'center',
+    gap: 4,
+
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  buttonText: {
+    color: ColorLight,
+    fontWeight: '600',
   },
-});
+
+  buttonTextDark: {
+    color: ColorDark,
+    fontWeight: '600',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row'
+  },
+
+  infoBox: {
+    marginTop: 4,
+    padding: 13,
+  },
+})

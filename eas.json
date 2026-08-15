@@ -1,0 +1,31 @@
+{
+  "cli": {
+    "version": ">= 18.4.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "SUPABASE_URL": "https://crzymkebjvqhqlvjhrwb.supabase.co/",
+        "SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyenlta2VianZxaHFsdmpocndiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MzkzNjIsImV4cCI6MjA5MDQxNTM2Mn0.zqpbjuGH7E0AOImYZN73vo3OjmwoyRPH7fX9U0JklyA"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

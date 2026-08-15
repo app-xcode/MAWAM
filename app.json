@@ -1,48 +1,138 @@
 {
   "expo": {
-    "name": "FirstApp",
-    "slug": "FirstApp",
+    "name": "mawam",
+    "slug": "mawam",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "firstapp",
+    "icon": "./assets/images/adaptive-icon.png",
+    "scheme": "mawam",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "jsEngine": "hermes",
     "ios": {
-      "supportsTablet": true
+      "jsEngine": "jsc",
+      "bundleIdentifier": "x.code.mawam",
+      "associatedDomains": [
+        "applinks:mawam.expo.app"
+      ],
+      "buildNumber": "1.0.0",
+      "supportsTablet": true,
+      "icon": {
+        "light": "./assets/images/ios-dark.png",
+        "dark": "./assets/images/ios-light.png",
+        "tinted": "./assets/images/ios-tinted.png"
+      },
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "Allow app to save QR code",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "x.code.mawam",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "mawam.expo.app",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./icon.png",
+      "manifest": {
+        "name": "mawam",
+        "short_name": "mawam",
+        "theme_color": "#0a0a0aff",
+        "background_color": "#ffffff",
+        "display": "standalone",
+        "orientation": "portrait",
+        "start_url": "./",
+        "icons": [
+          {
+            "src": "./icon.png",
+            "sizes": "100x100 64x64 32x32 24x24 16x16",
+            "type": "image/png"
+          },
+          {
+            "src": "./icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+          },
+          {
+            "src": "./icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+          }
+        ]
+      }
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "sitemap": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
+          "image": "./assets/images/splash-icon-dark.png",
+          "resizeMode": "cover",
           "backgroundColor": "#ffffff",
+          "imageWidth": 200,
           "dark": {
-            "backgroundColor": "#000000"
+            "image": "./assets/images/splash-icon-light.png",
+            "backgroundColor": "#0a0a0aff"
           }
         }
-      ]
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos."
+        }
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    }
+    "extra": {
+      "router": {
+        "sitemap": false
+      },
+      "eas": {
+        "projectId": "d1899504-e0ce-4094-87db-9b74824f0a9e"
+      }
+    },
+    "owner": "x.code"
   }
 }

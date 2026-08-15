@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "x.code.mawam",
+    "sha256_cert_fingerprints": ["64:EF:40:6E:9D:30:53:45:FD:EE:62:28:A7:A6:3B:87:B3:1F:81:46:04:0A:C4:A7:29:B9:79:A5:4C:DA:46:06"]
+  }
+}]
