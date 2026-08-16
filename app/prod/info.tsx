@@ -40,6 +40,9 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
     const [LikeProduk, setLikeProduk] = useState(likes.has(data.id));
     const [jumlahLike, setJumlahLike] = useState(0);
     const [pemilik, setPemilik] = useState(false);
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [reviewCount, setReviewCount] = useState(0);
+    const [averageRating, setAverageRating] = useState(0);
     const { loadCart } = useCart();
     const { cart } = useCart();
 
@@ -55,6 +58,33 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
             }
         }
     }, [user, data])
+
+    useEffect(() => {
+        let active = true;
+        const loadReviews = async () => {
+            if (!data?.id) return;
+            const { data: reviewData, count, error } = await supabase
+                .from('mawam_product_reviews')
+                .select('id, buyer_id, rating, review, image_url, image_urls, created_at', { count: 'exact' })
+                .eq('product_id', data.id)
+                .order('created_at', { ascending: false })
+                .limit(3);
+            if (!error && active) {
+                const buyerIds = [...new Set((reviewData ?? []).map((review: any) => review.buyer_id).filter(Boolean))];
+                const { data: profiles } = buyerIds.length ? await supabase.from('mawam_profile').select('id, nama').in('id', buyerIds) : { data: [] };
+                const names = new Map((profiles ?? []).map((profile: any) => [profile.id, profile.nama]));
+                setReviews((reviewData ?? []).map((review: any) => ({ ...review, buyerName: names.get(review.buyer_id) || 'Pembeli' })));
+                setReviewCount(count ?? 0);
+                const { data: ratings } = await supabase.from('mawam_product_reviews').select('rating').eq('product_id', data.id);
+                const average = ratings?.length ? ratings.reduce((total: number, item: any) => total + Number(item.rating || 0), 0) / ratings.length : 0;
+                setAverageRating(average);
+            }
+        };
+        void loadReviews();
+        return () => { active = false; };
+    }, [data?.id]);
+
+    const reviewImages = (review: any): string[] => review?.image_urls?.length ? review.image_urls : (review?.image_url ? [review.image_url] : []);
 
     Sharing.isAvailableAsync().then((available) => {
         setBisaShare(available);
@@ -353,7 +383,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
 
                     <ThemedText style={{ fontSize: 14, marginLeft: 20 }}>
                         {/* 4.5 • 235 ulasan */}
-                        Belum ada ulasan
+                        {reviewCount ? `${averageRating.toFixed(1)} • ${reviewCount} ulasan` : 'Belum ada ulasan'}
                     </ThemedText>
                 </View>
                 <ThemedView style={{ flexDirection: 'row', gap: 1, alignItems: 'center', paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8 }}>
@@ -427,6 +457,22 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
                 <ThemedText style={styles.desc}>
                     {data?.deskripsi?.trim() || 'Tidak ada deskripsi tambahan'}
                 </ThemedText>
+            </ThemedView>
+            <ThemedView style={styles.reviewSection}>
+                <View style={styles.reviewHeader}>
+                    <ThemedText type="defaultSemiBold">Penilaian Produk</ThemedText>
+                    { reviewCount > 3 && <TouchableOpacity onPress={() => router.push({ pathname: '/prod/penilaian', params: { productId: data.id, productName: data.nama_produk } })}>
+                        <ThemedText style={{ color: iconColor, fontWeight: '600' }}>{reviewCount > 3 ? 'Lihat Semua' : 'Lihat Penilaian'}</ThemedText>
+                    </TouchableOpacity>}
+                </View>
+                {reviews.length === 0 ? <ThemedText style={styles.emptyReview}>Belum ada penilaian untuk produk ini.</ThemedText> : reviews.map((review) => {
+                    const images = reviewImages(review);
+                    return <View key={review.id} style={styles.reviewCard}>
+                        <View style={styles.reviewRating}><ThemedText style={styles.reviewerName}>{review.buyerName}</ThemedText>{[1, 2, 3, 4, 5].map((star) => <Ionicons key={star} name={star <= review.rating ? 'star' : 'star-outline'} size={15} color="#F59E0B" />)}<ThemedText style={styles.reviewDate}>{new Date(review.created_at).toLocaleDateString('id-ID')}</ThemedText></View>
+                        {!!review.review && <ThemedText style={styles.reviewText}>{review.review}</ThemedText>}
+                        {images.length > 0 && <View style={styles.reviewPhotos}>{images.slice(0, 3).map((image: string) => <ImageLoad key={image} source={{ uri: image }} style={styles.reviewPhoto} />)}</View>}
+                    </View>;
+                })}
             </ThemedView>
             <ThemedView style={{ borderRadius: 8, marginVertical: 8, padding: 8 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -594,4 +640,14 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         textAlign: 'center'
     },
+    reviewSection: { borderRadius: 8, marginVertical: 8, padding: 10, gap: 8 },
+    reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    emptyReview: { opacity: 0.65, paddingVertical: 8 },
+    reviewCard: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#88888855', paddingTop: 9, gap: 5 },
+    reviewRating: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+    reviewerName: { fontWeight: '600', marginRight: 6 },
+    reviewDate: { marginLeft: 7, opacity: 0.6, fontSize: 11 },
+    reviewText: { lineHeight: 19 },
+    reviewPhotos: { flexDirection: 'row', gap: 7, marginTop: 3 },
+    reviewPhoto: { width: 72, height: 72, borderRadius: 6 },
 })

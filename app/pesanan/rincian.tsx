@@ -11,7 +11,7 @@ import { useTheme } from "@/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, Stack, router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, TouchableOpacity, ScrollView, SectionList, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Modal, TouchableOpacity, ScrollView, SectionList, StyleSheet, View } from "react-native";
 import { formatTanggal, formatWaktu } from "@/constants/countDown";
 import { formatService } from "@/constants/opsiPengiriman";
 import { copyText } from "@/constants/copyText";
@@ -26,6 +26,8 @@ export default function ModalScreen() {
   const [data, setData] = useState<any>(null);
   const [infoTotal, setInfoTotal] = useState(true);
   const [infoPesanan, setInfoPesanan] = useState(true);
+  const [showCancelRequestConfirmation, setShowCancelRequestConfirmation] = useState(false);
+  const [cancellingRequest, setCancellingRequest] = useState(false);
   const { isDark } = useTheme();
   const colorScheme = isDark ? "dark" : "light";
   const iconColor = Colors[colorScheme].icon;
@@ -65,7 +67,13 @@ export default function ModalScreen() {
                      satuan
                      )
                  ),
-                 mawam_pengiriman(*)
+                 mawam_pengiriman(*),
+                 mawam_order_cancellations(
+                   id,
+                   seller_decision,
+                   seller_rejection_reason,
+                   refund_status
+                 )
                  `)
       .order("created_at", { ascending: false });
     query = query.eq("id", orderId);
@@ -101,9 +109,60 @@ export default function ModalScreen() {
     );
   }
 
+  const cancellation = Array.isArray(data?.mawam_order_cancellations)
+    ? data.mawam_order_cancellations[0]
+    : data?.mawam_order_cancellations;
+  const isShipped = data?.status === "shipped";
+  const hasActiveCancellation = Boolean(cancellation && cancellation.seller_decision !== "cancelled");
+  const canCancelCancellationRequest = cancellation?.seller_decision === "pending";
+  const cancellationMessage = cancellation?.seller_decision === "pending"
+    ? "Pengajuan pembatalan sudah dikirim dan sedang menunggu persetujuan penjual."
+    : cancellation?.seller_decision === "rejected"
+      ? cancellation.seller_rejection_reason || "Pengajuan pembatalan ditolak oleh penjual."
+        : cancellation
+          ? "Pembatalan telah disetujui dan refund sedang diproses oleh admin."
+          : null;
+
+  const cancelCancellationRequest = async () => {
+    if (!cancellation?.id || cancellingRequest) return;
+
+    setCancellingRequest(true);
+    const { error } = await supabase.rpc("cancel_order_cancellation", {
+      p_cancellation_id: cancellation.id,
+    });
+    setCancellingRequest(false);
+
+    if (error) {
+      console.log(error);
+      Alerts("Pengajuan pembatalan tidak dapat dibatalkan.", "error");
+      return;
+    }
+
+    setShowCancelRequestConfirmation(false);
+    Alerts("Pengajuan pembatalan berhasil dibatalkan.", "success");
+    await fetchOrders();
+  };
+
   return (
     <React.Fragment>
       <Stack.Screen options={{ title: data?.status == 'cancelled' ? "Rincian Pembatalan" : "Rincian Pesanan" }} />
+      <Modal transparent visible={showCancelRequestConfirmation} animationType="fade" onRequestClose={() => setShowCancelRequestConfirmation(false)}>
+        <View style={styles.modalOverlay}>
+          <ThemedView style={styles.modalCard}>
+            <Ionicons name="close-circle-outline" size={30} color={ColorDark} />
+            <ThemedText style={styles.modalTitle}>Batalkan pengajuan?</ThemedText>
+            <ThemedText style={styles.modalDescription}>Penjual tidak akan memproses pembatalan ini. Anda dapat mengajukan pembatalan kembali bila diperlukan.</ThemedText>
+            <View style={styles.modalActions}>
+              <TouchableOpacity disabled={cancellingRequest} onPress={() => setShowCancelRequestConfirmation(false)} style={styles.modalBackButton}>
+                <ThemedText style={styles.modalBackText}>Kembali</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity disabled={cancellingRequest} onPress={cancelCancellationRequest} style={[styles.modalConfirmButton, cancellingRequest && styles.disabled]}>
+                {cancellingRequest ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Ya, Batalkan</ThemedText>}
+              </TouchableOpacity>
+            </View>
+          </ThemedView>
+        </View>
+      </Modal>
       <ScrollView style={{ flex: 1 }}>
         <View style={styles.container}>
           <ThemedView
@@ -114,15 +173,22 @@ export default function ModalScreen() {
               marginBottom: 8,
             }}
           >
-            {data?.status != 'cancelled' && <View style={{ backgroundColor: ColorDark, padding: 10, borderRadius: 8 }}>
-              <ThemedText style={{ fontWeight: "600", color: ColorLight }}>{data?.status?.includes('pending') ? 'Belum bayar pesanan' : 'Estimasi Tiba ' + Estimasi(data?.mawam_payments?.paid_at, ekstrakEstimasi(data?.pengiriman.map((item: any) => item.estimated_days)))}</ThemedText>
-              <ThemedText style={{ opacity: 0.7, color: ColorLight }}>
-                {
-                  data?.status?.includes('pending') ? 'Silakan lakukan pembayaran' :
-                    data?.status == 'shipped' ? 'Pesanan sedang dikirim' :
-                      data?.status == 'paid' ? 'Pesanan sedang disiapkan' : '...'
-                }
-              </ThemedText>
+            {data?.status != 'cancelled' && <View style={{ backgroundColor: ColorDark, padding: 10, borderRadius: 8, flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+              {hasActiveCancellation && <Ionicons name={canCancelCancellationRequest ? "time-outline" : "information-circle-outline"} size={20} color={ColorLight} />}
+              <View style={{ flex: 1 }}>
+                <ThemedText style={{ fontWeight: "600", color: ColorLight }}>
+                  {hasActiveCancellation
+                    ? canCancelCancellationRequest ? "Pengajuan pembatalan sudah dilakukan" : "Status pengajuan pembatalan"
+                    : data?.status?.includes('pending') ? 'Belum bayar pesanan' : 'Estimasi Tiba ' + Estimasi(data?.mawam_payments?.paid_at, ekstrakEstimasi(data?.pengiriman.map((item: any) => item.estimated_days)))}
+                </ThemedText>
+                <ThemedText style={{ opacity: 0.7, color: ColorLight }}>
+                  {hasActiveCancellation
+                    ? cancellationMessage
+                    : data?.status?.includes('pending') ? 'Silakan lakukan pembayaran' :
+                      data?.status == 'shipped' ? 'Pesanan sedang dikirim' :
+                        data?.status == 'paid' ? 'Pesanan sedang disiapkan' : '...'}
+                </ThemedText>
+              </View>
             </View>}
             {data?.status == 'cancelled' && <View style={{ backgroundColor: ColorDark, padding: 10, borderRadius: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View>
@@ -447,7 +513,7 @@ export default function ModalScreen() {
             <ThemedText style={styles.buttonText}>Beli Lagi</ThemedText>
           </TouchableOpacity>}
           
-          {data?.status != 'cancelled' && <TouchableOpacity style={[styles.button, { width: "49%", opacity: 0.7 }]}
+          {data?.status != 'cancelled' && !isShipped && !hasActiveCancellation && <TouchableOpacity style={[styles.button, { width: "49%", opacity: 0.7 }]}
             onPress={() => {
               router.navigate({
                 pathname:'/pesanan/batalkan/',
@@ -457,6 +523,19 @@ export default function ModalScreen() {
             }}
           >
             <ThemedText style={styles.buttonText}>Batalkan Pesanan</ThemedText>
+          </TouchableOpacity>}
+
+          {isShipped && <TouchableOpacity
+            style={[styles.button, { width: "49%", opacity: 0.7 }]}
+            onPress={() => router.navigate({ pathname: "/pesanan/lacak", params: { orderId: String(orderId) } })}
+          >
+            <ThemedText style={styles.buttonText}>Lacak Pesanan</ThemedText>
+          </TouchableOpacity>}
+
+          {data?.status != 'cancelled' && canCancelCancellationRequest && <TouchableOpacity style={[styles.button, { width: "49%", opacity: 0.7 }]}
+            onPress={() => setShowCancelRequestConfirmation(true)}
+          >
+            <ThemedText style={styles.buttonText}>Batalkan Pengajuan</ThemedText>
           </TouchableOpacity>}
 
           {data && data?.status.includes('pending') && <TouchableOpacity style={[styles.button, { width: "49%" }]}
@@ -502,4 +581,13 @@ const styles = StyleSheet.create({
     color: ColorLight,
     fontWeight: "600",
   },
+  modalOverlay: { flex: 1, backgroundColor: "#00000080", alignItems: "center", justifyContent: "center", padding: 24 },
+  modalCard: { width: "100%", maxWidth: 420, borderRadius: 14, padding: 20, alignItems: "center", gap: 12 },
+  modalTitle: { fontSize: 18, fontWeight: "700", textAlign: "center" },
+  modalDescription: { opacity: 0.72, lineHeight: 20, textAlign: "center" },
+  modalActions: { flexDirection: "row", gap: 10, width: "100%", marginTop: 6 },
+  modalBackButton: { flex: 1, borderColor: ColorDark, borderWidth: 1, borderRadius: 9, paddingVertical: 12, alignItems: "center" },
+  modalBackText: { color: ColorDark, fontWeight: "700" },
+  modalConfirmButton: { flex: 1, backgroundColor: ColorDark, borderRadius: 9, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  disabled: { opacity: 0.55 },
 });

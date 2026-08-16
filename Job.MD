@@ -5,7 +5,7 @@ Oleh siapa?
 
 - cart real time
 - cek data sensitif
-- pikirkan jika orang ma beli jumlah banyak
+- pikirkan jika orang mau beli jumlah banyak
 - pikirkan jika orang sudah bayar tapi mau batal
 - Pikirkan View produk untuk populer
 - Pikirkan terjual
@@ -41,6 +41,9 @@ Marketplace Mawam merupakan platform marketplace yang mempertemukan penjual hasi
     - pesanan di perbaharui,
     - update pengiriman,
     - pesanan dibayar dan perlu dikirim.
-- tambahkan halaman chat?
 - Edit Profil ==> su ubah alamat
 - sign up
+
+- tambahkan halaman chat?
+- notifikasi
+1. mungkin juga kalau pesanan yang di batalkan saat belum bayar atau batalkan secara instan maka harus ada pengembalian stok

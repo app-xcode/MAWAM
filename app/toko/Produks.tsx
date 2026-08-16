@@ -383,7 +383,7 @@ export default function Produks({ id_toko, nama_toko, pemilik }: any) {
                                     color={iconColor}
                                 />
                                 <ThemedText style={{ fontSize: 11 }}>
-                                    10 terjual
+                                    {item?.terjual ?? 0} terjual
                                 </ThemedText>
                             </View>}
                         </View>

@@ -359,7 +359,9 @@ export default function ModalScreen() {
                                                 Rincian Pesanan
                                             </ThemedText>
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} >
+                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => {
+                                            router.navigate({ pathname: 'pesanan/lacak', params: { orderId: section.id } })
+                                        }}>
                                             <ThemedText style={{ color: ColorLight }}>
                                                 Lacak
                                             </ThemedText>

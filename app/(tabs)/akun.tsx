@@ -4,11 +4,14 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { ImageLoad } from "@/components/ui/Imageload";
 import Alerts from "@/constants/Alerts";
+import { formatWaktu } from "@/constants/countDown";
 import { Colors } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/utils/CartContext";
+import { useAuth } from "@/utils/auth";
 import { useTheme } from "@/utils/theme";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import * as Linking from "expo-linking";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { Link, router } from "expo-router";
@@ -28,10 +31,10 @@ export default function Akun() {
   const ColorText = Colors[colorScheme].background;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [session, setSession] = useState<any>(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [nama, setNama] = useState("");
 
-  const [user, setUser] = useState<any>(null);
+  const { session, user } = useAuth();
   const [avatar, setAvatar] = useState<string | null>(null);
   const [loading, setloading] = useState(0);
   const iconColor = Colors[isDark ? "dark" : "light"].text;
@@ -82,11 +85,12 @@ export default function Akun() {
   });
 
   async function loadProfile() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user;
-    setUser(user);
+    if (!user) {
+      setTokoSaya(null);
+      setNama("");
+      setAvatar(null);
+      return;
+    }
 
     const { data } = await supabase
       .from("mawam_profile")
@@ -133,7 +137,7 @@ export default function Akun() {
   }, [user]);
   useEffect(() => {
     loadProfile();
-  }, []);
+  }, [user]);
 
   const convertToWebp = async (image: any) => {
     const result = await ImageManipulator.manipulateAsync(
@@ -216,36 +220,21 @@ export default function Akun() {
     !error && Alerts("Berhasil Ganti", "success");
   }
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      loadProfile();
-      setSession(session);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        loadProfile();
-        setSession(session);
-      },
-    );
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
   // LOGIN
   async function signIn() {
-    if (email == '' || password == '') {
-      return Alerts('Lengkapi Data Login', 'error');
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      return Alerts('Masukkan email dan password.', 'error');
     }
     setloading(1);
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
       if (error) Alerts(error.message, "error");
       else {
-        Alerts('Berhasil login!');
+        Alerts('Berhasil masuk!', 'success');
         router.navigate("/produk");
       }
     } finally {
@@ -255,30 +244,58 @@ export default function Akun() {
 
   // SIGNUP
   async function signUp() {
-    if (email == '' || password == '' || nama == '') {
-      return Alerts('Lengkapi Data Akun', 'error');
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password || !nama.trim() || !confirmPassword) {
+      return Alerts('Lengkapi nama, email, dan password.', 'error');
     }
     if (password.length < 6) {
       return Alerts('Password minimal 6 karakter', 'error');
     }
+    if (password !== confirmPassword) {
+      return Alerts('Konfirmasi password belum sama.', 'error');
+    }
     setloading(2);
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           data: {
-            name: nama ?? email.split('@')[0],
+            name: nama.trim(),
             app: 'mawam',
-            redirect_to: `${window.location.origin}`
           },
+          emailRedirectTo: Linking.createURL('/'),
         },
       });
 
       if (error) {
-        Alerts('Terjadi kesalahan saat sign up', 'error');
+        Alerts(error.message, 'error');
+      } else if (data.session) {
+        Alerts('Akun berhasil dibuat. Anda sudah masuk.', 'success');
+      } else {
+        Alerts('Akun dibuat. Cek email untuk memverifikasi akun Anda.', 'info');
       }
-      else Alerts("Cek email untuk verifikasi", "info");
+    } finally {
+      setloading(0);
+    }
+  }
+
+  async function requestPasswordReset() {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return Alerts('Masukkan email terlebih dahulu.', 'error');
+    }
+
+    setloading(3);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: Linking.createURL('/akun/update-password'),
+      });
+      if (error) {
+        Alerts(error.message, 'error');
+        return;
+      }
+      Alerts('Tautan untuk mengatur ulang password telah dikirim ke email Anda.', 'info');
     } finally {
       setloading(0);
     }
@@ -288,7 +305,7 @@ export default function Akun() {
   async function signOut() {
     setEmail("");
     setPassword("");
-    setSession(null);
+    setConfirmPassword("");
     setNama("");
     await supabase.auth.signOut();
   }
@@ -320,7 +337,7 @@ export default function Akun() {
 
   if (!session) {
     return (
-      <ThemedView style={{ padding: 20, flex: 1, opacity: loading == 1 ? 0.5 : 1 }}>
+      <ThemedView style={{ padding: 20, flex: 1, opacity: loading > 0 ? 0.5 : 1 }}>
         <KeyboardAwareScrollView
           enableOnAndroid
           extraScrollHeight={20}
@@ -347,30 +364,39 @@ export default function Akun() {
             label={
               <ThemedText style={styles.label}>Nama</ThemedText>
             }
+            value={nama}
             onChangeText={setNama}
             autoComplete="name"
             textContentType="name"
-            keyboardType="text"
+            autoCapitalize="words"
+            editable={loading === 0}
           />}
           <ThemedInput
             label={
               <ThemedText style={styles.label}>Email</ThemedText>
             }
+            value={email}
             onChangeText={setEmail}
-            autoComplete="username"
+            autoComplete="email"
             textContentType="username"
             keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={loading === 0}
           />
           <ThemedInput
-            label={<ThemedText style={styles.label}>Password</ThemedText>}
+            label={<ThemedText style={styles.label}>Password {isSignUp && '(minimal 6 karakter)'}</ThemedText>}
+            value={password}
             secureTextEntry={!isPasswordVisible}
             onChangeText={setPassword}
-            autoComplete="password"
-            textContentType="password"
-            returnKeyType="done"
-            onSubmitEditing={signIn}
+            autoComplete={isSignUp ? "new-password" : "current-password"}
+            textContentType={isSignUp ? "newPassword" : "password"}
+            returnKeyType={isSignUp ? "next" : "done"}
+            onSubmitEditing={isSignUp ? undefined : signIn}
+            editable={loading === 0}
             rightIcon={
               <TouchableOpacity
+                disabled={loading > 0}
                 onPress={() => setIsPasswordVisible(!isPasswordVisible)}
                 style={{
                   position: "absolute",
@@ -391,28 +417,43 @@ export default function Akun() {
               </TouchableOpacity>
             }
           />
+          {isSignUp && <ThemedInput
+            label={<ThemedText style={styles.label}>Konfirmasi Password</ThemedText>}
+            value={confirmPassword}
+            secureTextEntry={!isPasswordVisible}
+            onChangeText={setConfirmPassword}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            returnKeyType="done"
+            onSubmitEditing={signUp}
+            editable={loading === 0}
+          />}
 
-          <ThemedView style={{ flexDirection: "row", gap: 4, marginTop: 13 }}>
-            <TouchableOpacity onPress={!isSignUp ? signIn : () => { setIsSignUp(!isSignUp) }} style={[styles.button, { opacity: isSignUp ? 0.8 : 1 }]}>
-              {loading == 1 ? (
+          {!isSignUp && <TouchableOpacity disabled={loading > 0} onPress={requestPasswordReset} style={{ alignSelf: "flex-end", marginTop: 2, marginBottom: 12 }}>
+            <ThemedText style={{ color: ColorBg, fontWeight: "600" }}>Lupa password?</ThemedText>
+          </TouchableOpacity>}
+
+          <ThemedView style={{ marginTop: 13 }}>
+            <TouchableOpacity disabled={loading > 0} onPress={isSignUp ? signUp : signIn} style={[styles.button, { width: "100%", opacity: loading > 0 ? 0.55 : 1 }]}>
+              {loading > 0 ? (
                 <ActivityIndicator color={inIconColor} size="small" />
               ) : (
                 <ThemedText style={[styles.buttonText]}>
-                  {isSignUp ? 'Batal' : 'Log In'}
+                  {isSignUp ? 'Daftar' : 'Masuk'}
                 </ThemedText>
               )}
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={isSignUp ? signUp : () => { setIsSignUp(!isSignUp) }}
-              style={[styles.button, { opacity: isSignUp ? 1 : 0.8 }]}
+              disabled={loading > 0}
+              onPress={() => {
+                setIsSignUp(!isSignUp);
+                setConfirmPassword("");
+              }}
+              style={{ alignSelf: "center", paddingVertical: 16 }}
             >
-              {loading == 2 ? (
-                <ActivityIndicator color={inIconColor} size="small" />
-              ) : (
-                <ThemedText style={[styles.buttonText]}>
-                  {isSignUp ? 'Sign Up' : 'Akun Baru'}
-                </ThemedText>
-              )}
+              <ThemedText style={{ color: ColorBg, fontWeight: "600" }}>
+                {isSignUp ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar'}
+              </ThemedText>
             </TouchableOpacity>
           </ThemedView>
         </KeyboardAwareScrollView>
@@ -434,16 +475,16 @@ export default function Akun() {
           <TouchableOpacity onPress={pickImage} style={{ width: 50, position: 'relative' }}>
             <ImageLoad
               source={{ uri: avatar ?? "https://cros-image.vercel.app/?quest=https://mawam.expo.app/kosong.webp" }}
-              style={{ width: 50, height: 50, borderRadius: "50%", }}
+              style={{ width: 50, height: 50, borderRadius: "50%" }}
             />
             <ThemedView style={{ position: 'absolute', width: 18, height: 18, alignItems: 'center', bottom: -5, left: '50%', justifyContent: 'center', borderRadius: '50%', transform: [{ translateX: '-50%' }] }}>
               <Ionicons name="camera" size={15} color={iconColor} />
             </ThemedView>
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <ThemedText numberOfLines={1} style={{ fontWeight: "600" }}>{nama}</ThemedText>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.navigate("/akun/profil")}>
+            <ThemedText numberOfLines={1} style={{ fontWeight: "600" }}>{user?.user_metadata?.name || nama || "Pengguna"}</ThemedText>
             <ThemedText numberOfLines={1}>{user?.email}</ThemedText>
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={{ flexDirection: "row", gap: 8, alignItems: "center", flex: 1, justifyContent: 'flex-end' }}>
           {/* <TouchableOpacity
@@ -616,7 +657,7 @@ export default function Akun() {
                 <ThemedText>
                   <Ionicons name="log-in-outline" size={18} />
                 </ThemedText>
-                <ThemedText>Terakhir login hari ini</ThemedText>
+                <ThemedText>Terakhir login {user?.last_sign_in_at ? formatWaktu(user.last_sign_in_at) : "belum tersedia"}</ThemedText>
               </View>
               <ThemedText style={{ opacity: 0.5 }}>
                 <Ionicons name="phone-portrait-outline" size={14} /> 1 Device
