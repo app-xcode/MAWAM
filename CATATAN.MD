@@ -11,7 +11,7 @@ My Cart (Cari, Img, Judul, Delete, Varian, Harga, Update jumlah) -> Total Harga,
 Modal Confirm Remove cart, (Img, Judul, Delete, Varian, Harga, Update jumlah) -> Btn Batal & Ya Hapus
 Checkout (Konfirmasi Alamat, Icon Map, Judul, Alamat Lengkap, Edit, bisa ke menu pilih list alamat/lebih simple edit alamat tujuan)
 Add Promo jika ada
-Payment Methods (Pilih Opsi bayar->bisa di handle midtrans)
+Payment Methods (Pilih Opsi bayar->bisa di handle dengan Mayar)
 Enter Pin bayar 
 Order Sukses, Lihat Order / Lanjut Shopp
 

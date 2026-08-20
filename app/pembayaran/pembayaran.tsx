@@ -83,7 +83,7 @@ export default function ModalScreen() {
             await loadPaymentProofs();
             return;
         }
-        const { data, error } = await supabase.functions.invoke("mawam-midtrans", {
+        const { data, error } = await supabase.functions.invoke("mawam-mayar", {
             body: {
                 paymentId,
                 payment_type,
@@ -377,7 +377,7 @@ export default function ModalScreen() {
                             <ThemedText style={{ opacity: 0.5, marginBottom: 4, fontSize: 11 }}>Scan kode Qr ini / Salin untuk simulasi bayar </ThemedText>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <ImageLoad style={{ width: 200, height: 200 }} source={{ uri: dataPayment?.va_number ? 'https://qrcode-image-xcode.vercel.app/qrcode.png?text=' + dataPayment?.va_number + '&w=500' : gambarDefault }} />
-                                <TouchableOpacity onPress={() => { dataPayment && copyText('https://api.sandbox.midtrans.com/v2/qris/' + dataPayment?.midtrans_order_id + '/qr-code') }} style={{ padding: 8 }}>
+                                <TouchableOpacity onPress={() => { dataPayment && copyText(dataPayment?.va_number) }} style={{ padding: 8 }}>
                                     <ThemedText style={{ opacity: 0.5 }}>
                                         Salin
                                     </ThemedText>

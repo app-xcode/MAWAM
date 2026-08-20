@@ -397,7 +397,7 @@ export default function ModalScreen() {
                 buyer_id: auth.user.id,
                 reference,
                 amount,
-                status: "pending",
+                status: "pending_payment",
                 payment_method: metodeBayar ?? 'manual_qris',
                 bank: bankBayar ?? 'bri',
             })
