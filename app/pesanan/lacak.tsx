@@ -5,9 +5,12 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/utils/auth";
 import { useTheme } from "@/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
+import ShipmentHistoryMap from "@/components/ui/ShipmentHistoryMap";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View, Linking } from "react-native";
+import * as Clipboard from 'expo-clipboard';
+import Alerts from "@/constants/Alerts";
 
 const BITESHIP_ENDPOINT = "https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/biteship";
 
@@ -46,6 +49,7 @@ export default function LacakPesananScreen() {
   const tintText = Colors["dark"].tint;
   const [shipment, setShipment] = useState<any>(null);
   const [tracking, setTracking] = useState<any>(null);
+  const [locationHistory, setLocationHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +74,7 @@ export default function LacakPesananScreen() {
     if (shipmentError || !delivery) {
       setShipment(null);
       setTracking(null);
+      setLocationHistory([]);
       setError("Data pengiriman untuk pesanan ini belum tersedia.");
       setLoading(false);
       setRefreshing(false);
@@ -77,6 +82,13 @@ export default function LacakPesananScreen() {
     }
 
     setShipment(delivery);
+    const { data: savedHistory, error: historyError } = await supabase
+      .from("mawam_pengiriman_lokasi")
+      .select("id, kota, drop_point, status, catatan, latitude, longitude, created_at")
+      .eq("pengiriman_id", delivery.id)
+      .order("created_at", { ascending: false });
+    if (historyError) console.warn("Riwayat lokasi:", historyError.message);
+    setLocationHistory(savedHistory ?? []);
     const courier = String(delivery.courier_code ?? "").trim().toLowerCase();
     const waybill = String(delivery.tracking_number ?? delivery.resi ?? "").trim();
 
@@ -110,6 +122,17 @@ export default function LacakPesananScreen() {
   }, [orderId, user]);
 
   useEffect(() => {
+    if (!shipment?.id) return;
+    const channel = supabase
+      .channel(`shipment-location-${shipment.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "mawam_pengiriman_lokasi", filter: `pengiriman_id=eq.${shipment.id}` }, (payload) => {
+        setLocationHistory((current) => [payload.new, ...current]);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [shipment?.id]);
+
+  useEffect(() => {
     if (!user) {
       router.replace("produk");
       return;
@@ -119,8 +142,23 @@ export default function LacakPesananScreen() {
   }, [loadTracking, user]);
 
   const events = getEvents(tracking);
-  const deliveryStatus = tracking?.status ?? tracking?.tracking_status ?? tracking?.latest_status ?? "Status belum tersedia";
+  const latestLocation = locationHistory[0];
+  const deliveryStatus = latestLocation?.status ?? tracking?.status ?? tracking?.tracking_status ?? tracking?.latest_status ?? "Status belum tersedia";
   const waybill = shipment?.tracking_number ?? shipment?.resi;
+
+  function getCourierWebsite(courier?: string) {
+    if (!courier) return null;
+    const c = courier.toLowerCase();
+    const map: Record<string, string> = {
+      jne: 'https://www.jne.co.id',
+      sicepat: 'https://www.sicepat.com',
+      pos: 'https://www.posindonesia.co.id',
+      tiki: 'https://www.tiki.id',
+    };
+    return map[c] ?? null;
+  }
+
+  const courierWebsite = getCourierWebsite(String(shipment?.courier_code ?? shipment?.courier_name ?? '').toLowerCase());
 
   return (
     <>
@@ -141,13 +179,34 @@ export default function LacakPesananScreen() {
             <View style={styles.divider} />
             <ThemedText style={styles.label}>Nomor resi</ThemedText>
             <ThemedText selectable style={styles.waybill}>{waybill ?? "Belum tersedia"}</ThemedText>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <TouchableOpacity style={[styles.reload, { backgroundColor: tint }]} onPress={() => {
+                if (!waybill) return;
+                Clipboard.setStringAsync(String(waybill));
+                Alerts('Berhasil salin');
+              }}>
+                <ThemedText style={{ color: tintText, fontWeight: '700' }}>Salin Resi</ThemedText>
+              </TouchableOpacity>
+              {courierWebsite && waybill && <TouchableOpacity style={[styles.reload, { backgroundColor: tint }]} onPress={() => {
+                const url = `${courierWebsite}`;
+                Linking.openURL(url).catch(() => setError('Tidak dapat membuka situs kurir'));
+              }}>
+                <ThemedText style={{ color: tintText, fontWeight: '700' }}>Lacak di Website Kurir</ThemedText>
+              </TouchableOpacity>}
+            </View>
             <View style={[styles.status, { backgroundColor: tint }]}>
               <Ionicons name="navigate-outline" size={18} color={tintText} />
               <ThemedText style={{ color: tintText, fontWeight: "700", flex: 1 }}>{String(deliveryStatus)}</ThemedText>
             </View>
           </ThemedView>
 
-          {error ? <ThemedView style={styles.card}>
+          {locationHistory.length > 0 && <ThemedView style={styles.card}>
+            <ThemedText style={styles.title}>Lokasi Paket Saat Ini</ThemedText>
+            <ThemedText style={styles.currentLocation}>{latestLocation.drop_point}, {latestLocation.kota}</ThemedText>
+            {latestLocation.catatan && <ThemedText style={styles.muted}>{latestLocation.catatan}</ThemedText>}
+          </ThemedView>}
+
+          {error && locationHistory.length === 0 ? <ThemedView style={styles.card}>
             <View style={styles.row}>
               <Ionicons name="information-circle-outline" size={28} color={iconColor} />
               <View>
@@ -161,7 +220,18 @@ export default function LacakPesananScreen() {
 
           </ThemedView> : <ThemedView style={styles.card}>
             <ThemedText style={styles.title}>Riwayat Pengiriman</ThemedText>
-            {events.length === 0 ? <ThemedText style={styles.muted}>Belum ada pembaruan perjalanan dari kurir.</ThemedText> : events.map((event, index) => (
+            {locationHistory.length > 0 && <ShipmentHistoryMap locations={[...locationHistory].reverse()} />}
+            {locationHistory.length > 0 ? locationHistory.map((event, index) => (
+              <View key={event.id} style={styles.event}>
+                <View style={styles.timeline}><View style={[styles.dot, { backgroundColor: index === 0 ? tint : iconColor }]} />{index < locationHistory.length - 1 && <View style={styles.line} />}</View>
+                <View style={styles.flex}>
+                  <ThemedText style={{ fontWeight: "700" }}>{event.status}</ThemedText>
+                  <ThemedText style={styles.muted}>{event.drop_point}, {event.kota}</ThemedText>
+                  {event.catatan && <ThemedText style={styles.muted}>{event.catatan}</ThemedText>}
+                  <ThemedText style={styles.muted}>{formatDateTime(event.created_at)}</ThemedText>
+                </View>
+              </View>
+            )) : events.length === 0 ? <ThemedText style={styles.muted}>Belum ada pembaruan perjalanan paket.</ThemedText> : events.map((event, index) => (
               <View key={`${event.updated_at ?? event.created_at ?? event.date ?? index}-${index}`} style={styles.event}>
                 <View style={styles.timeline}><View style={[styles.dot, { backgroundColor: index === 0 ? tint : iconColor }]} />{index < events.length - 1 && <View style={styles.line} />}</View>
                 <View style={styles.flex}>
@@ -188,6 +258,7 @@ const styles = StyleSheet.create({
   label: { opacity: 0.65, marginBottom: 4 },
   muted: { opacity: 0.7, marginTop: 3 },
   waybill: { fontSize: 18, fontWeight: "700", letterSpacing: 0.4 },
+  currentLocation: { fontSize: 17, fontWeight: "700", marginTop: 5 },
   divider: { borderTopWidth: 1, borderColor: "#cccccc24", marginVertical: 12 },
   status: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 7, padding: 10, marginTop: 14 },
   reload: { alignSelf: "flex-start", borderRadius: 6, paddingHorizontal: 12, paddingVertical: 8, marginTop: 12 },

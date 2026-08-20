@@ -5,6 +5,10 @@ import Alerts from "@/constants/Alerts";
 import { rupiah } from "@/constants/rupiah";
 import { Colors } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
+import {
+  notifyCancellationRequestedToBuyer,
+  notifyCancellationRequestedToSeller,
+} from "@/services/notification/notificationTriggers";
 import { useAuth } from "@/utils/auth";
 import { useTheme } from "@/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -247,6 +251,14 @@ export default function BatalkanPesananScreen() {
       Alerts("Pembatalan pesanan gagal. Silakan coba lagi.", "error");
       return;
     }
+
+    try {
+      await notifyCancellationRequestedToBuyer(user.id, order.id);
+      await notifyCancellationRequestedToSeller(order.seller_id, order.id);
+    } catch (notificationError) {
+      console.log('Cancellation notification error', notificationError);
+    }
+
     Alerts("Permintaan pembatalan berhasil dikirim.", "success");
     await fetchOrder();
   };

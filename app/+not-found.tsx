@@ -1,4 +1,10 @@
 import { router } from "expo-router";
+import { useEffect } from "react";
+
 export default function Page() {
-  return router.replace("/");
+  useEffect(() => {
+    router.replace("/");
+  }, []);
+
+  return null;
 }

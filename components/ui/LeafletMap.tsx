@@ -26,70 +26,78 @@ const latdef = -10.159890491789517;
 const lngdef = 123.62356804311275;
 
 function DraggableMarker({
-  latitude,
-  longitude,
-  popup,
-  onLocationChange,
+    latitude,
+    longitude,
+    popup,
+    onLocationChange,
 }: Props) {
-  const markerRef = useRef<L.Marker>(null);
-  const [position, setPosition] = useState<[number, number]>([
-    latitude ?? latdef,
-    longitude ?? lngdef,
-  ]);
+    const markerRef = useRef<L.Marker>(null);
 
-  useEffect(() => {
-    if (popup) {
-      markerRef.current?.openPopup();
-    }
-  }, [popup]);
+    const [position, setPosition] = useState<[number, number]>([
+        latitude ?? latdef,
+        longitude ?? lngdef,
+    ]);
 
-  useEffect(() => {
-    if (latitude != null && longitude != null) {
-      setPosition([latitude, longitude]);
-    }
-  }, [latitude, longitude]);
+    // Update posisi marker ketika data dari database berubah
+    useEffect(() => {
+        if (latitude != null && longitude != null) {
+            setPosition([latitude, longitude]);
+        }
+    }, [latitude, longitude]);
 
-  useMapEvents({
-    click(e) {
-      const pos: [number, number] = [e.latlng.lat, e.latlng.lng];
-      setPosition(pos);
-      onLocationChange?.(pos[0], pos[1]);
-    },
-  });
+    // Buka popup setelah posisi marker sudah mengikuti data database
+    useEffect(() => {
+        if (popup && markerRef.current) {
+            markerRef.current.setLatLng(position);
+            markerRef.current.openPopup();
+        }
+    }, [popup, position]);
 
-  return (
-    <Marker
-      ref={markerRef}
-      draggable
-      // position={position}
-      position={[latitude ?? latdef, longitude ?? lngdef]}
-      eventHandlers={{
-        dragend(e) {
-          const { lat, lng } = e.target.getLatLng();
-          setPosition([lat, lng]);
-          onLocationChange?.(lat, lng);
+    useMapEvents({
+        click(e) {
+            const pos: [number, number] = [
+                e.latlng.lat,
+                e.latlng.lng,
+            ];
+
+            setPosition(pos);
+            onLocationChange?.(pos[0], pos[1]);
         },
-      }}
-    >
-      <Popup>
-        <div>
-          <div>
-            <b>
-              {popup?.name}
-            </b>
-            <br/>{popup?.code??''}
-            </div>
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}&query_place_id=${popup?.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-             Lihat Lokasi
-          </a>
-        </div>
-      </Popup>
-    </Marker>
-  );
+    });
+
+    return (
+        <Marker
+            ref={markerRef}
+            draggable
+            position={position}
+            eventHandlers={{
+                dragend(e) {
+                    const { lat, lng } = e.target.getLatLng();
+
+                    setPosition([lat, lng]);
+                    onLocationChange?.(lat, lng);
+                },
+            }}
+        >
+            <Popup>
+                <div>
+                    <div>
+                        <b>{popup?.name}</b>
+                        <br />
+                        {popup?.code ?? ''}
+                    </div>
+
+                    <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}&query_place_id=${popup?.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Lihat Lokasi
+                    </a>
+                </div>
+            </Popup>
+        </Marker>
+    );
 }
 
 function ChangeView({

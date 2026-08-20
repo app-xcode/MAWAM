@@ -50,6 +50,8 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
     useEffect(() => {
         if (user && data) {
             setPemilik(user.id == data.mawam_toko.user_id)
+        }
+        if (data) {
             setJumlahLike(data?.jumlah_like ?? 0);
             if (data?.album) {
                 setalbums([data?.gambar_produk, ...data?.album])
@@ -215,9 +217,10 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
                     onSnapToItem={(index) => setActive(index)}
                     width={width < 500 ? width - 20 : 500 - 20}
                     height={250}
-                    autoPlay={albums.length>1}
+                    autoPlay={albums.length > 1}
                     data={albums}
                     autoPlayInterval={6000}
+                    enabled={albums.length > 1}
                     style={{ borderRadius: 10, overflow: 'hidden' }}
                     renderItem={({ item, index }: any) => (
                         <View>
@@ -285,14 +288,14 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
                                         color="#fff"
                                     />
                                 </TouchableOpacity>
-                                <ThemedView style={{ position: 'absolute', paddingHorizontal: 8, borderRadius: 8, bottom: 10, right: 10 }}>
+                               {albums.length > 1 && <ThemedView style={{ position: 'absolute', paddingHorizontal: 8, borderRadius: 8, bottom: 10, right: 10 }}>
                                     <ThemedText style={{ fontSize: 11 }}>{index + 1}/{albums.length}</ThemedText>
-                                </ThemedView>
+                                </ThemedView>}
                             </BackgroundImage>
                         </View>
                     )}
                 />
-                <View style={{ bottom: 0, padding: 8, position: 'absolute', alignItems: 'center', width: '100%' }}>
+               {albums.length > 1 && <View style={{ bottom: 0, padding: 8, position: 'absolute', alignItems: 'center', width: '100%' }}>
                     <View style={{ flexDirection: 'row', gap: 1 }}>
                         {albums.map((_, i) => (
                             <ThemedView
@@ -306,7 +309,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
                             />
                         ))}
                     </View>
-                </View>
+                </View>}
             </View>
 
             <ThemedView style={[styles.row, { marginTop: 10 }]}>
@@ -461,7 +464,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
             <ThemedView style={styles.reviewSection}>
                 <View style={styles.reviewHeader}>
                     <ThemedText type="defaultSemiBold">Penilaian Produk</ThemedText>
-                    { reviewCount > 3 && <TouchableOpacity onPress={() => router.push({ pathname: '/prod/penilaian', params: { productId: data.id, productName: data.nama_produk } })}>
+                    {reviewCount > 3 && <TouchableOpacity onPress={() => router.push({ pathname: '/prod/penilaian', params: { productId: data.id, productName: data.nama_produk } })}>
                         <ThemedText style={{ color: iconColor, fontWeight: '600' }}>{reviewCount > 3 ? 'Lihat Semua' : 'Lihat Penilaian'}</ThemedText>
                     </TouchableOpacity>}
                 </View>

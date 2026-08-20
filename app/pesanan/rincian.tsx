@@ -402,6 +402,10 @@ export default function ModalScreen() {
                   {data?.mawam_payments?.payment_method == 'bank_transfer' ? 'Transfer Bank ' + data?.mawam_payments?.bank.toUpperCase() : data?.mawam_payments?.bank.toUpperCase()}
                 </ThemedText>
               </TouchableOpacity>
+              {data?.mawam_payments?.verification_status && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, justifyContent: 'space-between' }}>
+                <ThemedText>Status Verifikasi</ThemedText>
+                <ThemedText style={{ opacity: 0.7 }}>{data.mawam_payments.verification_status.replaceAll('_', ' ')}</ThemedText>
+              </View>}
               {infoPesanan && <View>
                 {/* <TouchableOpacity
                   style={{

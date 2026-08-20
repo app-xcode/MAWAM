@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "688767678106",
+    "project_id": "mywebapp-3a387",
+    "storage_bucket": "mywebapp-3a387.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:688767678106:android:b53190184a92e858ed1123",
+        "android_client_info": {
+          "package_name": "x.code.mawam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBB1n60MU1O9o5sjNfqHa5yUKfx29CNOxs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

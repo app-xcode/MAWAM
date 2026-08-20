@@ -10,6 +10,10 @@ import { rupiah } from '@/constants/rupiah'
 import { getKodeWilayah } from '@/constants/setKodeOngkir'
 import { Colors } from '@/constants/theme'
 import { supabase } from '@/lib/supabase'
+import {
+    notifyOrderCreatedToBuyer,
+    notifyOrderCreatedToSeller,
+} from '@/services/notification/notificationTriggers'
 import { useAuth } from '@/utils/auth'
 import { useTheme } from '@/utils/theme'
 import { Ionicons } from '@expo/vector-icons'
@@ -37,8 +41,8 @@ export default function ModalScreen() {
     const [subtotalKurir, setSubtotalKurir] = useState(0);
     const [total, setTotal] = useState(0);
     const [biayaLayanan, setBiayaLayanan] = useState(2000);
-    const [metodeBayar, setMetodeBayar] = useState('bank_transfer');
-    const [bankBayar, setBankBayar] = useState('bri');
+    const [metodeBayar, setMetodeBayar] = useState('manual_qris');
+    const [bankBayar, setBankBayar] = useState('manual_qris');
     const [toggleMethod, setToggleMethod] = useState(true);
     const [pilihKurir, setpilihKurir] = useState<any>(null);
     const [pengiriman, setPengiriman] = useState<any[]>([]);
@@ -394,7 +398,7 @@ export default function ModalScreen() {
                 reference,
                 amount,
                 status: "pending",
-                payment_method: metodeBayar ?? 'bank_transfer',
+                payment_method: metodeBayar ?? 'manual_qris',
                 bank: bankBayar ?? 'bri',
             })
             .select()
@@ -535,6 +539,18 @@ export default function ModalScreen() {
     };
     const methods: PaymentMethod[] = [
         {
+            id: "manual_qris",
+            type: "manual_qris",
+            title: "Bayar dengan QRIS",
+            icon: "qr-code-outline",
+        },
+         {
+            id: "manual_transfer",
+            type: "manual_transfer",
+            title: "Transfer Manual",
+            icon: "card-outline",
+        },
+        {
             id: "bri",
             type: "bank_transfer",
             title: "Transfer Bank BRI",
@@ -589,7 +605,7 @@ export default function ModalScreen() {
                                         }</ThemedText>
                                     </View>
                                     <ThemedText style={{ fontSize: 11 }} numberOfLines={3}>
-                                        {dataUser?.alamat.replace("\n", ' ') ?? 'Anda belum mengatur alamat'}
+                                        {dataUser?.alamat?.replace("\n", ' ') ?? 'Anda belum mengatur alamat'}
                                     </ThemedText>
                                 </View>
                             </View>
@@ -942,13 +958,22 @@ export default function ModalScreen() {
                             const success1 = orders ? await createOrderItems(orders) : false;
                             const success2 = orders ? await createPengiriman(orders) : false;
                             if (success1 && success2) {
+                                console.log(orders)
+                               if(orders && orders.length>0){ for (const order of orders) {
+                                    try {
+                                        await notifyOrderCreatedToBuyer(order.buyer_id, order.id);
+                                        await notifyOrderCreatedToSeller(order.seller_id, order.id);
+                                    } catch (error) {
+                                        console.log('Order notification error', error);
+                                    }
+                                }}
                                 const del = await deleteCart(cartIds);
                                 if (del) {
                                     router.replace({
                                         pathname: "pembayaran/pembayaran",
                                         params: {
                                             paymentId: payment.id,
-                                            payment_type: ['cod', 'qris'].indexOf(metodeBayar) == -1 ? 'bank_transfer' : metodeBayar,
+                                            payment_type: ['cod', 'qris', 'manual_transfer', 'manual_qris'].indexOf(metodeBayar) == -1 ? 'bank_transfer' : metodeBayar,
                                             bank: bankBayar
                                         },
                                     });

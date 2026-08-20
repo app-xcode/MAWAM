@@ -35,7 +35,7 @@ Client Key
 Mid-client-lx2v2rRqpf6ihEDG
 
 Server Key
-Mid-server-tpcJDaFAR3gN1WW-znLPO4nI
+[Simpan hanya sebagai Supabase Edge Function secret; jangan commit ke repository atau frontend.]
  -->
 
 

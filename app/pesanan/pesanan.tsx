@@ -322,13 +322,29 @@ export default function ModalScreen() {
                                             })
                                         }}
                                     >
-                                        <View style={{ flexDirection: 'row', gap: 2 }}>
+                                        <View style={{ flexDirection: "row", gap: 2 }}>
                                             <ThemedText style={{ opacity: 0.8 }}>
-                                                Bayar dalam
+                                                {["manual_transfer", "manual_qris"].includes(
+                                                    section.payment?.payment_method
+                                                )
+                                                    ? "Segera Bayar Manual"
+                                                    : "Bayar dalam"}
                                             </ThemedText>
-                                            <Countdown expiredAt={section.payment.expired_at} />
+
+                                            {!["manual_transfer", "manual_qris"].includes(
+                                                section.payment?.payment_method
+                                            ) && (
+                                                    <Countdown expiredAt={section.payment?.expired_at} />
+                                                )}
+
                                             <ThemedText style={{ opacity: 0.8 }}>
-                                                dengan {section.payment?.payment_method == 'bank_transfer' ? 'Bank ' + (section.payment?.bank) : section.payment?.payment_method}
+                                                {section.payment?.payment_method === "bank_transfer"
+                                                    ? `dengan Bank ${section.payment?.bank}`
+                                                    : section.payment?.payment_method === "manual_transfer"
+                                                        ? "ke rekening admin"
+                                                        : section.payment?.payment_method === "manual_qris"
+                                                            ? "melalui QRIS"
+                                                            : section.payment?.payment_method}
                                             </ThemedText>
                                         </View>
                                         <Ionicons name="chevron-forward-circle" size={18} color={iconColor} />

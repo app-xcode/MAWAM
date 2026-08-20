@@ -77,6 +77,26 @@
       }
     </style>
     <script>
+      // OPTIONAL: set window.__FIREBASE_VAPID_KEY__ and/or window.__FIREBASE_CONFIG__ before app boots.
+      // Use the Firebase Web app config from Firebase Console, not the Android google-services.json.
+      // Example (do NOT commit secrets):
+      // <script>
+      window.__FIREBASE_VAPID_KEY__ =
+        "BKRsHU2rZw4EjdF3v4GeE1rpUqwgmn7uFG9HanpYUwoPtqfqi0iDjjTteWHZDtNy14sKPeBqdTZeRb7pQTFjUcc";
+      window.__FIREBASE_CONFIG__ = {
+        apiKey: "AIzaSyAvAbgPFB0eKYjg7rplwRj6GqLvTaAbaCo",
+        authDomain: "mywebapp-3a387.firebaseapp.com",
+        projectId: "mywebapp-3a387",
+        storageBucket: "mywebapp-3a387.firebasestorage.app",
+        messagingSenderId: "688767678106",
+        appId: "1:688767678106:web:d498d80ea5156e77ed1123",
+        measurementId: "G-YLVVNXYPHR",
+      };
+      if (!window.__FIREBASE_VAPID_KEY__ && !window.__FIREBASE_CONFIG__) {
+        console.info(
+          "Firebase web config not found. To enable FCM set window.__FIREBASE_VAPID_KEY__ or window.__FIREBASE_CONFIG__.",
+        );
+      }
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker

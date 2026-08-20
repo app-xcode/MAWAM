@@ -20,6 +20,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
 import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel'
+import { opacity } from 'react-native-reanimated/lib/typescript/Colors'
 const ColorDark = Colors['light'].tint;
 const ColorLight = Colors['dark'].tint;
 const width = Dimensions.get('window').width;
@@ -495,8 +496,9 @@ export default function ModalScreen() {
                             <ActivityIndicator size="small" color={iconColor} />
                             <ThemedText>Memuat</ThemedText>
                         </ThemedView>) : (<TouchableOpacity onPress={() => {
-                            handlePickAndUpload()
-                        }}>
+                            handlePickAndUpload(imageUploads[0] == imageDefault ? 0 :-1)
+                        }}
+                        >
                             <ThemedView style={{ padding: 4, borderRadius: 8, backgroundColor: iconBg, borderWidth: 1, borderColor: iconColor, marginRight: 8, justifyContent: 'space-between', flexDirection: 'row', gap: 1, alignItems: 'center' }}>
                                 <Ionicons name="add" size={16} color={iconColor} />
                                 <ThemedText>Gambar</ThemedText>
@@ -509,10 +511,11 @@ export default function ModalScreen() {
                             onSnapToItem={(index) => setActive(index)}
                             width={width < 500 ? width - 20 : 500 - 20}
                             height={250}
-                            autoPlay={isAutoPlay}
+                            autoPlay={imageUploads.length > 1 && isAutoPlay}
                             data={imageUploads}
                             autoPlayInterval={6000}
                             style={{ borderRadius: 10, overflow: 'hidden' }}
+                            enabled={imageUploads.length > 1}
                             renderItem={({ item, index }) => (
                                 <View>
                                     <BackgroundImage style={{ width: '100%', height: 250, marginBottom: 0, overflow: 'hidden', backgroundColor: '#c3c2c233', position: 'relative' }}
@@ -601,14 +604,14 @@ export default function ModalScreen() {
                                                 color="#fff"
                                             />
                                         </TouchableOpacity>}
-                                        <ThemedView style={{ position: 'absolute', paddingHorizontal: 8, borderRadius: 8, bottom: 10, right: 10 }}>
+                                        {imageUploads.length > 1 && <ThemedView style={{ position: 'absolute', paddingHorizontal: 8, borderRadius: 8, bottom: 10, right: 10 }}>
                                             <ThemedText style={{ fontSize: 11 }}>{index + 1}/{imageUploads.length}</ThemedText>
-                                        </ThemedView>
+                                        </ThemedView>}
                                     </BackgroundImage>
                                 </View>
                             )}
                         />
-                        <View style={{ bottom: 0, padding: 8, position: 'absolute', alignItems: 'center', width: '100%' }}>
+                        {imageUploads.length > 1 && <View style={{ bottom: 0, padding: 8, position: 'absolute', alignItems: 'center', width: '100%' }}>
                             <View style={{ flexDirection: 'row', gap: 1 }}>
                                 {imageUploads.map((_, i) => (
                                     <TouchableOpacity
@@ -626,7 +629,7 @@ export default function ModalScreen() {
                                     </TouchableOpacity>
                                 ))}
                             </View>
-                        </View>
+                        </View>}
                     </View>
 
                     <ThemedInput

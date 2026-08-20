@@ -87,7 +87,8 @@ export default function ModalScreen() {
                     satuan
                     )
                 ),
-                 mawam_pengiriman(*)
+                 mawam_pengiriman(*),
+                 mawam_order_cancellations(*)
                 `)
             .order("created_at", { ascending: false })
             .eq("seller_id", user?.id);
@@ -136,6 +137,7 @@ export default function ModalScreen() {
 
             data: order.mawam_order_items.slice(0, 1),
             allItems: order.mawam_order_items,
+            cancellation: order.mawam_order_cancellations ? (Array.isArray(order.mawam_order_cancellations) ? order.mawam_order_cancellations[0] : order.mawam_order_cancellations) : null,
             pengiriman: order.mawam_pengiriman,
             expanded: order.mawam_order_items?.length > 1 ? true : false, // nanti untuk toggle
         }));
@@ -332,12 +334,26 @@ export default function ModalScreen() {
                                         <ThemedText style={{ opacity: 0.8 }}>
                                             Mohon atur pengiriman segera
                                         </ThemedText>
-                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }}>
+                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }} onPress={() => {
+                                            router.navigate({ pathname: '/toko/atur-pengiriman/' + section.id })
+                                        }}>
                                             <ThemedText>
                                                 Atur Pengiriman
                                             </ThemedText>
                                         </TouchableOpacity>
                                     </View>}
+
+                                    {statusConfig[status]?.text == 'Perlu Kirim' && section.cancellation && (section.cancellation.seller_decision === 'pending' || section.cancellation.request_status === 'requested') && (
+                                        <View style={{ marginTop: 8, padding: 8, borderRadius: 8, backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fca5a5' }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <ThemedText style={{ color: '#b91c1c', fontWeight: '600' }}>Permintaan pembatalan diterima</ThemedText>
+                                                <TouchableOpacity onPress={() => router.navigate({ pathname: '/toko/pembatalan/' + section.id })} style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
+                                                    <ThemedText>Rincian Pembatalan</ThemedText>
+                                                </TouchableOpacity>
+                                            </View>
+                                            <ThemedText style={{ opacity: 0.8, marginTop: 6 }}>Pembeli mengajukan pembatalan — mohon konfirmasi.</ThemedText>
+                                        </View>
+                                    )}
 
                                     {(statusConfig[status]?.text == 'Perlu Kirim' || statusConfig[status]?.text == 'Pengiriman') && <View style={{ paddingVertical: 4, marginTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
                                         <ThemedText style={{ opacity: 0.8 }}>
@@ -351,14 +367,18 @@ export default function ModalScreen() {
                                     {statusConfig[status]?.text == 'Pengiriman' && <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
                                         <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }} onPress={() => {
                                             router.navigate({
-                                                pathname: 'pesanan/rincian',
-                                                params: { orderId: section.id }
+                                                pathname: '/toko/pesanan/' + section.id
                                             })
                                         }} >
                                             <ThemedText>
                                                 Rincian Pesanan
                                             </ThemedText>
                                         </TouchableOpacity>
+                                        {section.pengiriman?.[0]?.id && <TouchableOpacity style={{ borderWidth: 1, borderColor: '#ff4a1c', borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4 }} onPress={() => {
+                                            router.navigate({ pathname: '/toko/pengiriman/[pengirimanId]', params: { pengirimanId: String(section.pengiriman[0].id) } });
+                                        }}>
+                                            <ThemedText style={{ color: '#ff4a1c' }}>Update Drop Point</ThemedText>
+                                        </TouchableOpacity>}
                                         <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => {
                                             router.navigate({ pathname: 'pesanan/lacak', params: { orderId: section.id } })
                                         }}>
@@ -396,30 +416,29 @@ export default function ModalScreen() {
                                         </TouchableOpacity>
                                     </View>}
                                     {statusConfig[status]?.text == 'Penilaian' && <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }}
-                                            onPress={() => { alert('Masukan ke keranjang lalu alihkan ke halaman Cart') }}
-                                        >
+                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }} onPress={() => {
+                                            router.navigate({ pathname: '/toko/pesanan/' + section.id })
+                                        }}>
                                             <ThemedText>
-                                                Beli lagi
+                                                Rincian Pesanan
                                             </ThemedText>
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} >
+                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => {
+                                            router.navigate({
+                                                pathname: '/toko/review/' + section.id
+                                            })
+                                        }}>
                                             <ThemedText style={{ color: ColorLight }}>
-                                                Nilai
+                                                Lihat Penilaian
                                             </ThemedText>
                                         </TouchableOpacity>
                                     </View>}
                                     {statusConfig[status]?.text == 'Pembatalan' && <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }} >
+                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }} onPress={() => {
+                                            router.navigate({ pathname: '/toko/pembatalan/'+section.id })
+                                        }}>
                                             <ThemedText>
                                                 Rincian Pembatalan
-                                            </ThemedText>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }}
-                                            onPress={() => { alert('Masukan ke keranjang lalu alihkan ke halaman Cart') }}
-                                        >
-                                            <ThemedText style={{ color: ColorLight }}>
-                                                Beli Lagi
                                             </ThemedText>
                                         </TouchableOpacity>
                                     </View>}

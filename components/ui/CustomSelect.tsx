@@ -13,21 +13,27 @@ interface OptionItem {
 }
 
 interface CustomSelectProps {
-  defaultValue?: any;
-  data: OptionItem[];
-  onSelect: (item: OptionItem) => void;
-  placeholder?: string;
-  inputStyle?: {
-    button?: ViewStyle,
-    buttonText?: TextStyle
-    overlay?: ViewStyle
-    item?: ViewStyle
-    itemText?: TextStyle
-  }
+    value?: any;
+    data: OptionItem[];
+    onSelect: (item: OptionItem) => void;
+    placeholder?: string;
+    inputStyle?: {
+        button?: ViewStyle,
+        buttonText?: TextStyle
+        overlay?: ViewStyle
+        item?: ViewStyle
+        itemText?: TextStyle
+    }
 }
 const { height } = Dimensions.get('window')
 
-export const CustomSelect = ({ defaultValue, data = [], onSelect, placeholder = "Pilih...", inputStyle }: CustomSelectProps) => {
+export const CustomSelect = ({
+    value,
+    data = [],
+    onSelect,
+    placeholder = "Pilih...",
+    inputStyle
+}: CustomSelectProps) => {
 
   const [visible, setVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<OptionItem | null>(null);
@@ -39,14 +45,12 @@ export const CustomSelect = ({ defaultValue, data = [], onSelect, placeholder = 
   };
 
   const showLabel = (id: any) => {
-    if (!id) return null
-    const r = data.map(item => {
-      if (item.value == id) {
-        return item.label;
-      }
-    })
-    return r ?? null;
-  }
+    if (id === undefined || id === null || id === '') return null;
+
+    const item = data.find(item => item.value == id);
+
+    return item?.label ?? null;
+  };
 
   return (
     <React.Fragment>
@@ -57,7 +61,7 @@ export const CustomSelect = ({ defaultValue, data = [], onSelect, placeholder = 
         }, 150);
       }}>
         <ThemedText style={[styles.text, inputStyle?.buttonText]}>
-          {showLabel(defaultValue) || (selectedItem?.label ??  placeholder)}
+          {showLabel(value) || (selectedItem?.label ?? placeholder)}
         </ThemedText>
       </TouchableOpacity>
       <Modal visible={visible} transparent animationType="fade" >

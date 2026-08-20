@@ -1,11 +1,12 @@
 const API_KEY = Deno.env.get("BITESHIP_API_KEY_TEST");
 const BASE_URL = "https://api.biteship.com/v2";
+const V1_BASE_URL = "https://api.biteship.com/v1";
 
 const headers = {
   Authorization: API_KEY!,
   "Content-Type": "application/json",
 };
-
+// Bearer ${Biteship_API_KEY}
 // export async function getRates(payload: any) {
 //   const res = await fetch(`${BASE_URL}/rates/couriers`, {
 //     method: "POST",
@@ -56,7 +57,7 @@ export async function getLocations(keyword: string) {
 }
 
 export async function createDraftOrder(payload: any) {
-  const res = await fetch(`https://api.biteship.com/v1/draft_orders`, {
+  const res = await fetch(`${V1_BASE_URL}/draft_orders`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -64,6 +65,28 @@ export async function createDraftOrder(payload: any) {
       draft: true,
     }),
   });
+
+  console.log({
+      ...payload,
+      draft: true,
+    });
+  console.log(res);
+
+  return await parseBiteshipResponse(res);
+}
+
+export async function confirmDraftOrder(draftOrderId: string) {
+  if (!draftOrderId?.trim()) {
+    throw new Error("ID draft Biteship wajib diisi.");
+  }
+
+  const res = await fetch(
+    `${V1_BASE_URL}/draft_orders/${encodeURIComponent(draftOrderId)}/confirm`,
+    {
+      method: "POST",
+      headers,
+    },
+  );
 
   return await parseBiteshipResponse(res);
 }

@@ -1,6 +1,7 @@
 import Alerts from '@/constants/Alerts';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { notifyNewReviewToSeller } from '@/services/notification/notificationTriggers';
 import { useAuth } from '@/utils/auth';
 import { useTheme } from '@/utils/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -173,6 +174,21 @@ export default function PenilaianPesanan() {
         if (error) throw error;
       }
       const hasDeleteError = await deleteRemovedPhotos();
+
+      const { data: orderOwnerData } = await supabase
+        .from('mawam_orders')
+        .select('seller_id')
+        .eq('id', order.id)
+        .single();
+
+      if (orderOwnerData?.seller_id) {
+        try {
+          await notifyNewReviewToSeller(orderOwnerData.seller_id, order.id);
+        } catch (notificationError) {
+          console.log('Review notification error', notificationError);
+        }
+      }
+
       Alerts(hasDeleteError ? 'Penilaian tersimpan, tetapi sebagian foto lama belum terhapus.' : 'Penilaian berhasil dikirim.', hasDeleteError ? 'info' : 'success');
       router.back();
     } catch (error: any) {

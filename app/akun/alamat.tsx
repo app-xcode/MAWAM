@@ -13,17 +13,7 @@ import { ActivityIndicator, Platform, StyleSheet, TouchableOpacity, View } from 
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
 const ColorDark = Colors['light'].tint;
 const ColorLight = Colors['dark'].tint;
-import LeafletMap from '@/components/ui/LeafletMap'
-import type { ComponentType } from "react";
-
-type MapPickerProps = {
-    onLocationChange?: (latitude: number, longitude: number) => void;
-};
-
-let MapPicker: ComponentType<MapPickerProps> | null = null
-if (Platform.OS !== "web") {
-    MapPicker = require("@/components/ui/MapPicker").default;
-}
+import MapPicker from "@/components/ui/MapPicker";
 
 export default function ModalScreen() {
     const [lat, setLat] = useState(0);
@@ -58,7 +48,6 @@ export default function ModalScreen() {
     const [des, setDes] = useState<string>('');
     const [pointAlamat, setPointAlamat] = useState<string>('');
 
-
     useEffect(() => {
         tampilLokasi(latitude, longitude)
     }, [latitude, longitude]);
@@ -81,7 +70,7 @@ export default function ModalScreen() {
         fetchDesa(kecamatan)
     }, [kecamatan]);
     useEffect(() => {
-        fetchKodePos([des, keca, prov].join('+'))
+        fetchKodePos([des, keca, prov].join(' '))
     }, [des]);
 
     const fetchAkun = async () => {
@@ -108,6 +97,8 @@ export default function ModalScreen() {
             if (data.latitude) {
                 setLatitude(data.latitude)
             }
+        }
+        if (data.longitude) {
             if (data.longitude) {
                 setLongitude(data.longitude)
             }
@@ -184,14 +175,17 @@ export default function ModalScreen() {
         }
     };
     const fetchKodePos = async (data: any, loop: boolean = true) => {
-        const keyword = data.replace(/\s/gi, '+').replace('Daerah+Khusus+Ibukota','DKI');
+        if (data?.trim().length == 0) {
+            return;
+        }
+        const keyword = data.replace(/\s/gi, '+').replace('Daerah+Khusus+Ibukota', 'DKI');
         const res = await fetch(`https://kodepos.vercel.app/search/?q=${keyword}`);
         const json = await res.json();
         if (json && json?.statusCode == 200 && json?.code == 'OK') {
             if (json?.data && json?.data.length) {
                 const kodes = json?.data.filter((item: any) => item?.village == des);
                 const pos = kodes.map((item: any) => {
-                    if((latitude===-10.176596 || item.code!=kode_pos) && item.latitude && item.longitude){
+                    if ((latitude === -10.176596 || item.code != kode_pos) && item.latitude && item.longitude) {
                         setLatitude(item.latitude)
                         setLongitude(item.longitude)
                     }
@@ -208,31 +202,52 @@ export default function ModalScreen() {
         }
     };
     const tampilLokasi = async (lat: number, lng: number) => {
-        const res = await fetch('https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/proxy?url=' + (encodeURIComponent(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat}%2C${lng}&radius=30&key=AIzaSyB5Zf-tTLdsCoDhVJiv4klSDqpw4cX9U0Y`)), {
-            method: "GET"
-        });
+        const res = await fetch(
+            'https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/proxy?url=' +
+            encodeURIComponent(
+                `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat}%2C${lng}&radius=30&key=AIzaSyB5Zf-tTLdsCoDhVJiv4klSDqpw4cX9U0Y`
+            )
+        );
 
         const json = await res.json();
-        if (json
-            && json.status === "OK"
-            && json?.results
+
+        // Koordinat sudah berubah, abaikan hasil request lama
+        if (
+            lat !== latitude ||
+            lng !== longitude
         ) {
-            const tempat = json?.results.filter((r: any) => {
-                return r.business_status == "OPERATIONAL" && r.name
-            });
-
-
-            const lokasi = tempat[0]?.geometry?.location
-            // setLatitude(lokasi.lat);
-            // setLongitude(lokasi.lng);
-            setPopup({
-                id: tempat[0]?.place_id,
-                name: tempat[0]?.name,
-                code: tempat[0]?.plus_code?.compound_code,
-            });
-            setPointAlamat((tempat[0]?.name?tempat[0]?.name+', ':'') + (tempat[0]?.plus_code?.compound_code ?? ''))
+            return;
         }
 
+        if (json?.status === "OK" && json?.results) {
+            const tempat = json.results.filter(
+                (r: any) =>
+                    r.business_status === "OPERATIONAL" &&
+                    r.name
+            );
+
+            const lokasi = tempat[0];
+
+
+            setPopup({
+                id: lokasi?.place_id,
+                name: lokasi?.name,
+                code: lokasi?.plus_code?.compound_code,
+            });
+
+            setPointAlamat(
+                (lokasi?.name ? lokasi.name + ', ' : '') +
+                (lokasi?.plus_code?.compound_code ?? '')
+            );
+        } else if(dataUser?.pin_map) {
+            setPopup({
+                id: undefined,
+                name: dataUser?.pin_map,
+                code: undefined,
+            });
+
+            setPointAlamat(dataUser?.pin_map);
+        }
     };
 
 
@@ -259,7 +274,7 @@ export default function ModalScreen() {
                 kode_pos: kode_pos,
                 latitude,
                 longitude,
-                pin_map:pointAlamat
+                pin_map: pointAlamat
             }).eq('id', user.id);
             !error && Alerts('Berhasil Ubah', 'success')
             cart && router.replace({ pathname: 'checkout/checkout', params: { cart } })
@@ -287,7 +302,7 @@ export default function ModalScreen() {
                         }} placeholder="" />
                         <ThemedText style={styles.label}>Provinsi</ThemedText>
                         <CustomSelect
-                            defaultValue={provinsi}
+                            value={provinsi}
                             placeholder='Pilih Provinsi'
                             data={provinsis}
                             onSelect={(item: any) => { setProvinsi(item.value); setProv(item.label) }}
@@ -295,7 +310,7 @@ export default function ModalScreen() {
                         />
                         <ThemedText style={styles.label}>Kabupaten</ThemedText>
                         <CustomSelect
-                            defaultValue={kabupaten}
+                            value={kabupaten}
                             placeholder='Pilih Kabupaten'
                             data={kabupatens}
                             onSelect={(item: any) => { setKabupaten(item.value); setKabu(item.label) }}
@@ -303,7 +318,7 @@ export default function ModalScreen() {
                         />
                         <ThemedText style={styles.label}>Kecamatan</ThemedText>
                         <CustomSelect
-                            defaultValue={kecamatan}
+                            value={kecamatan}
                             placeholder='Pilih Kecamatan'
                             data={kecamatans}
                             onSelect={(item: any) => { setKecamatan(item.value); setKeca(item.label) }}
@@ -311,7 +326,7 @@ export default function ModalScreen() {
                         />
                         <ThemedText style={styles.label}>Desa</ThemedText>
                         <CustomSelect
-                            defaultValue={desa}
+                            value={desa}
                             placeholder='Pilih Desa'
                             data={desas}
                             onSelect={(item: any) => { setDesa(item.value); setDes(item.label) }}
@@ -319,7 +334,7 @@ export default function ModalScreen() {
                         />
                         <ThemedText style={styles.label}>Kode Pos</ThemedText>
                         <CustomSelect
-                            defaultValue={kode_pos}
+                            value={kode_pos}
                             placeholder='Pilih Kode Pos'
                             data={kodeposs}
                             onSelect={(item: any) => {
@@ -329,34 +344,29 @@ export default function ModalScreen() {
                         />
                         <ThemedInput label={<ThemedText style={styles.label}>Alamat Lengkap</ThemedText>} value={dataUser.alamat ?? alamat_pos} onChangeText={(text: string) => { setDataUser({ ...dataUser, alamat: text }) }} placeholder={alamat_pos} style={{ height: 100, textAlignVertical: 'top', }} multiline />
                         {/* nama lengkap, nomor telepon, provinsi, kota, kecamatan, kode pos, nama jalan, gedung, no.rumah, detail lainnya, titik lokasi */}
-                        {Platform.OS === "web" &&
-                            <View
-                                style={{
-                                    position: 'relative',
-                                }}
-                            >
-                                <ThemedInput label={<ThemedText style={styles.label}>Pin Point Alamat</ThemedText>} value={pointAlamat} onChangeText={(text: string) => {
-                                    setPointAlamat(text)
-                                }} placeholder="" />
-                                <LeafletMap
-                                    // key={Date.now()}
-                                    latitude={latitude}
-                                    longitude={longitude}
-                                    popup={popup}
-                                    onLocationChange={(lat, lng) => {
-                                        setLatitude(lat);
-                                        setLongitude(lng);
-                                    }}
-                                />
-                            </View>
-                        }
-
-                        {MapPicker && <MapPicker
-                            onLocationChange={(latitude, longitude) => {
-                                setLat(latitude);
-                                setLng(longitude);
+                        <View
+                            style={{
+                                position: 'relative',
                             }}
-                        />}
+                        >
+                            <ThemedInput label={<ThemedText style={styles.label}>Pin Point Alamat</ThemedText>} value={pointAlamat} onChangeText={(text: string) => {
+                                setPointAlamat(text)
+                            }} placeholder="" />
+
+                            <MapPicker
+                                initialLocation={{
+                                    latitude,
+                                    longitude,
+                                }}
+                                popup={popup}
+                                onLocationChange={(lat, lng) => {
+                                    setLatitude(lat);
+                                    setLongitude(lng);
+                                }}
+                            />
+                        </View>
+
+
                     </ThemedView>
 
                     <ThemedView style={{ flexDirection: 'row', gap: '1%', justifyContent: 'center', alignItems: 'center', paddingBottom: 10, borderRadius: 10, marginTop: 2 }}>

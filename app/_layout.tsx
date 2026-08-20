@@ -20,6 +20,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { CartProvider } from '@/utils/CartContext';
 import { LikeProvider } from '@/utils/LikeContext';
+import CustomConfirm from '@/components/ui/CustomConfirm';
+import FCMRegistrar from '@/components/FCMRegistrar';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -32,6 +34,11 @@ export default function RootLayout() {
   const [isDark, setIsDark] = useState(darkSy);
   const toggleTheme = () => setIsDark(prev => !prev);
   const [loading, setLoading] = useState(true);
+  const toastConfig = {
+    custom_confirm: (props: any) => (
+      <CustomConfirm {...props} />
+    ),
+  };
 
   useEffect(() => {
     setIsDark(colorScheme != 'dark')
@@ -50,7 +57,6 @@ export default function RootLayout() {
       const urls = [
         'https://cros-image.vercel.app/',
         'https://qrcode-image-xcode.vercel.app/',
-        'https://mumo-share.vercel.app/'
       ];
 
       try {
@@ -99,6 +105,7 @@ export default function RootLayout() {
                 <ActionSheetProvider>
                   <CartProvider>
                     <LikeProvider>
+                      <FCMRegistrar />
                       <Stack>
                         <Stack.Screen name="(tabs)" options={{ title: 'Beranda', headerShown: false }} />
                         <Stack.Screen name="prod/detail" options={{ presentation: 'modal', title: 'Detail Produk', headerShown: true }} />
@@ -107,12 +114,13 @@ export default function RootLayout() {
                         <Stack.Screen name="toko/detail" options={{ presentation: 'modal', title: 'Detail Toko', headerShown: true }} />
                         <Stack.Screen name="checkout/checkout" options={{ presentation: 'modal', title: 'Checkout', headerShown: true }} />
                         <Stack.Screen name="pesanan/pesanan" options={{ presentation: 'modal', title: 'Pesanan Saya', headerShown: true }} />
+                        <Stack.Screen name="toko/pembatalan/[orderId]" options={{ presentation: 'modal', title: 'Rincian Pembatalan', headerShown: true }} />
                         {/* <Stack.Screen name="cart/cart" options={{ presentation: 'card', title: 'My Cart', headerShown: true }} /> */}
                       </Stack>
                     </LikeProvider>
                   </CartProvider>
                 </ActionSheetProvider>
-                <Toast />
+                <Toast config={toastConfig} />
                 <StatusBar style={isDark ? 'light' : 'dark'} />
               </ThemeProvider>
             </ThemeContext.Provider>

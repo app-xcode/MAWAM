@@ -1,7 +1,6 @@
 import { jsonResponse } from "./utils/response.ts";
 import { getCache, saveCache } from "./_shared/cache.ts";
-import { supabase } from "./_shared/supabase.ts";
-import { getRates, getTracking, getLocations, createDraftOrder} from "./_shared/biteship.ts";
+import { getRates, getTracking, getLocations, createDraftOrder, confirmDraftOrder } from "./_shared/biteship.ts";
 
 const ONGKIR_EXPIRE = 24 * 60 * 60 * 1000;
 const RESI_EXPIRE = 30 * 60 * 1000;
@@ -50,7 +49,6 @@ async function handleLocations(body: any) {
 export async function handleDraftOrder(data: any) {
   try {
     const result = await createDraftOrder(data);
-
     return jsonResponse({
       success: true,
       data: result,
@@ -59,6 +57,30 @@ export async function handleDraftOrder(data: any) {
     return jsonResponse({
       success: false,
       message: e.message,
+    }, 400);
+  }
+}
+
+export async function handleConfirmOrder(data: any) {
+  const draftOrderId = data?.draft_order_id ?? data?.id;
+
+  if (typeof draftOrderId !== "string" || !draftOrderId.trim()) {
+    return jsonResponse({
+      success: false,
+      message: "ID draft Biteship wajib diisi.",
+    }, 400);
+  }
+
+  try {
+    const result = await confirmDraftOrder(draftOrderId);
+    return jsonResponse({
+      success: true,
+      data: result,
+    });
+  } catch (e: any) {
+    return jsonResponse({
+      success: false,
+      message: e.message ?? "Gagal mengonfirmasi draft Biteship.",
     }, 400);
   }
 }

@@ -7,6 +7,7 @@ import Alerts from "@/constants/Alerts";
 import { formatWaktu } from "@/constants/countDown";
 import { Colors } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
+import { notifyLoginSuccess } from "@/services/notification/notificationTriggers";
 import { useCart } from "@/utils/CartContext";
 import { useAuth } from "@/utils/auth";
 import { useTheme } from "@/utils/theme";
@@ -16,8 +17,10 @@ import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { Link, router } from "expo-router";
 import { useEffect, useState } from "react";
+import * as Notifications from "expo-notifications";
 import {
   ActivityIndicator,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -228,12 +231,19 @@ export default function Akun() {
     }
     setloading(1);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
       });
       if (error) Alerts(error.message, "error");
       else {
+        if (data.user) {
+          try {
+            await notifyLoginSuccess(data.user.id);
+          } catch (notificationError) {
+            console.log('Login notification error', notificationError);
+          }
+        }
         Alerts('Berhasil masuk!', 'success');
         router.navigate("/produk");
       }
@@ -334,6 +344,34 @@ export default function Akun() {
     </View>
     <ThemedText numberOfLines={1} style={{ textAlign: 'center', fontSize: 13 }}>{text}</ThemedText>
   </TouchableOpacity>)
+
+  const handleNotificationPress = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            console.log('Web notification permission granted');
+          } else if (permission === 'denied') {
+            Alerts('Izin notifikasi diblokir di browser. Silakan aktifkan dari pengaturan browser.', 'error');
+          }
+        }
+      } else {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') {
+          const result = await Notifications.requestPermissionsAsync();
+          if (result.status !== 'granted') {
+            Alerts('Izin notifikasi ditolak. Silakan aktifkan dari pengaturan perangkat.', 'error');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Notification permission request failed:', error);
+      Alerts('Gagal meminta izin notifikasi.', 'error');
+    }
+
+    router.navigate('/notifikasi/page');
+  };
 
   if (!session) {
     return (
@@ -487,15 +525,11 @@ export default function Akun() {
           </TouchableOpacity>
         </View>
         <View style={{ flexDirection: "row", gap: 8, alignItems: "center", flex: 1, justifyContent: 'flex-end' }}>
-          {/* <TouchableOpacity
-            onPress={() => {
-              Alerts('Pengaturan')
-            }}
-          >
+          <TouchableOpacity onPress={handleNotificationPress} style={{ position: 'relative' }}>
             <ThemedText>
-              <Ionicons name="cog-outline" size={25} />
+              <Ionicons name="notifications-outline" size={25} />
             </ThemedText>
-          </TouchableOpacity> */}
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
               router.navigate("cart");
@@ -509,15 +543,6 @@ export default function Akun() {
               <ThemedText style={{ color: '#ffffff', fontSize: cart.length < 99 ? 12 : 6 }} numberOfLines={1}>{cart.length < 99 ? cart.length : '99+'}</ThemedText>
             </View>}
           </TouchableOpacity>
-          {/* <TouchableOpacity
-            onPress={() => {
-              Alerts('Pesan')
-            }}
-          >
-            <ThemedText>
-              <Ionicons name="chatbox-outline" size={25} />
-            </ThemedText>
-          </TouchableOpacity> */}
         </View>
       </ThemedView>
       <KeyboardAwareScrollView
