@@ -958,7 +958,6 @@ export default function ModalScreen() {
                             const success1 = orders ? await createOrderItems(orders) : false;
                             const success2 = orders ? await createPengiriman(orders) : false;
                             if (success1 && success2) {
-                                console.log(orders)
                                if(orders && orders.length>0){ for (const order of orders) {
                                     try {
                                         await notifyOrderCreatedToBuyer(order.buyer_id, order.id);

@@ -30,7 +30,7 @@ Tambahkan environment variables berikut di Supabase Edge Function:
 ### Mayar Configuration
 ```env
 MAYAR_API_KEY=your_mayar_api_key
-MAYAR_API_URL=https://api.mayar.id/hl/v1  # atau https://api.mayar.io/hl/v1 untuk sandbox
+MAYAR_API_URL=https://api.mayar.id/hl/v2  # v2 API (atau https://api.mayar.io/hl/v2 untuk sandbox)
 MAYAR_WEBHOOK_SECRET=your_mayar_webhook_secret
 ```
 
@@ -51,7 +51,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```bash
 # Via Supabase CLI
 supabase secrets set MAYAR_API_KEY your_api_key
-supabase secrets set MAYAR_API_URL https://api.mayar.id/hl/v1
+supabase secrets set MAYAR_API_URL https://api.mayar.id/hl/v2
 supabase secrets set MAYAR_WEBHOOK_SECRET your_webhook_secret
 ```
 

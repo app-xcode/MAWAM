@@ -8,7 +8,7 @@
 ### Environment Setup
 - [ ] Tambahkan environment variables ke Supabase:
   - `MAYAR_API_KEY` = [API key dari Mayar]
-  - `MAYAR_API_URL` = https://api.mayar.id/hl/v1 (production) atau https://api.mayar.io/hl/v1 (sandbox)
+  - `MAYAR_API_URL` = https://api.mayar.id/hl/v2 (production) atau https://api.mayar.io/hl/v2 (sandbox)
   - `MAYAR_WEBHOOK_SECRET` = [Webhook secret dari Mayar]
 
 ### Database Setup

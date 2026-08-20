@@ -8,7 +8,7 @@ supabase functions deploy mawam-mayar
 
 # Deploy dengan environment variables
 supabase secrets set MAYAR_API_KEY "your_api_key"
-supabase secrets set MAYAR_API_URL "https://api.mayar.id/hl/v1"
+supabase secrets set MAYAR_API_URL "https://api.mayar.id/hl/v2"
 supabase secrets set MAYAR_WEBHOOK_SECRET "your_webhook_secret"
 supabase functions deploy mawam-mayar
 
@@ -121,7 +121,7 @@ SELECT * FROM mawam_payments WHERE reference = 'PAY-12345';
 # Settings > Webhooks > View logs
 
 # Test Mayar API directly (replace with your credentials)
-curl -X POST https://api.mayar.id/hl/v1/checkouts \
+curl -X POST https://api.mayar.id/hl/v2/checkouts \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -142,7 +142,7 @@ supabase secrets list
 supabase functions info mawam-mayar
 
 # 3. Verify Mayar API is reachable
-curl https://api.mayar.id/hl/v1/health
+curl https://api.mayar.id/hl/v2/health
 
 # 4. Check database connection in logs
 supabase functions logs mawam-mayar

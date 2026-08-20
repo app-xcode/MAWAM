@@ -66,7 +66,7 @@ CREATE INDEX idx_mawam_payments_mayar_checkout_id ON mawam_payments(mayar_checko
 | Status Model | `pending`, `settlement`, `cancel` | `waiting_payment`, `paid`, `cancelled` |
 | Internal Status | - | `pending_payment` (baru) |
 | Auth | Basic Auth (Server Key + `:`) | Bearer Token (API Key) |
-| API Base URL | `api.sandbox.midtrans.com/v2` | `api.mayar.id/hl/v1` |
+| API Base URL | `api.sandbox.midtrans.com/v2` | `api.mayar.id/hl/v2` |
 | Charge Endpoint | `/charge` | `/checkouts` |
 | Status Endpoint | `/{order_id}/status` | `/checkouts/{checkout_id}` |
 | VA Numbers | `result.va_numbers[0]` | `result.payment_channels[0]` |
@@ -101,7 +101,7 @@ CREATE INDEX idx_mawam_payments_mayar_checkout_id ON mawam_payments(mayar_checko
 2. Create mawam_payments (status: "pending_payment")
    ↓
 3. Call mawam-mayar edge function
-   → Send to api.mayar.id/hl/v1/checkouts
+   → Send to api.mayar.id/hl/v2/checkouts
    → Get mayar_checkout_id, payment_channels, expiry
    ↓
 4. User lihat payment page
@@ -120,7 +120,7 @@ CREATE INDEX idx_mawam_payments_mayar_checkout_id ON mawam_payments(mayar_checko
 ```env
 # Mayar Configuration
 MAYAR_API_KEY=<your_mayar_api_key>
-MAYAR_API_URL=https://api.mayar.id/hl/v1  # atau .io untuk sandbox
+MAYAR_API_URL=https://api.mayar.id/hl/v2  # atau .io untuk sandbox
 MAYAR_WEBHOOK_SECRET=<your_webhook_secret>
 
 # Existing (unchanged)
