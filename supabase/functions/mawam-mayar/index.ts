@@ -626,68 +626,160 @@ async function handleWebhook(req: Request) {
 
     if (!data) {
         console.error("Invalid Mayar webhook: data tidak ditemukan");
+
         return new Response(
-            JSON.stringify({ success: false, message: "Invalid webhook data" }),
+            JSON.stringify({
+                success: false,
+                message: "Invalid webhook data",
+            }),
             {
                 status: 400,
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                },
             }
         );
     }
 
-    const status = data.status;
-    const paidAt = data.updatedAt || new Date().toISOString();
-
-    const paymentId = data.extraData?.paymentId;
-    const reference = data.extraData?.reference;
-
     console.log("Mayar Event:", event);
-    console.log("Mayar Status:", status);
+    console.log("Mayar Status:", data?.status);
+    console.log("Mayar Amount:", data?.amount);
+    console.log("Mayar Payment Method:", data?.paymentMethod);
+
+    // Hanya proses payment.received
+    if (event !== "payment.received") {
+        console.log("Bukan event payment.received:", event);
+
+        return new Response(
+            JSON.stringify({
+                success: true,
+                message: "Event ignored",
+            }),
+            {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+            }
+        );
+    }
+
+    const status = data?.status;
+    const paidAt =
+        data?.updatedAt || new Date().toISOString();
+
+    const paymentId = data?.extraData?.paymentId;
+    const reference = data?.extraData?.reference;
+
+    const mayarAmount = Number(data?.amount);
+
     console.log("Mayar Payment ID:", paymentId);
     console.log("Mayar Reference:", reference);
+    console.log("Mayar Amount:", mayarAmount);
 
-    if (event != "payment.received") {
-        console.log('Bukan terima pembayaran')
-    }
-    // Hanya proses pembayaran sukses
     const orderStatus = getMayarOrderStatus(status);
 
-    // Cari payment berdasarkan ID internal terlebih dahulu
-    let payment = null;
+    // ==========================================
+    // CARI PAYMENT
+    // ==========================================
 
+    let payment: any = null;
+
+    // 1. Cari berdasarkan paymentId
     if (paymentId) {
         const { data: paymentById, error } = await supabase
             .from("mawam_payments")
-            .select("id, status")
+            .select(`
+                id,
+                status,
+                payment_method,
+                amount,
+                amount_unik
+            `)
             .eq("id", paymentId)
             .maybeSingle();
 
         if (error) {
-            console.error("Error finding payment by ID:", error);
+            console.error(
+                "Error finding payment by ID:",
+                error
+            );
         }
 
         payment = paymentById;
     }
 
-    // Fallback berdasarkan reference
+    // 2. Cari berdasarkan reference
     if (!payment && reference) {
-        const { data: paymentByReference, error } = await supabase
-            .from("mawam_payments")
-            .select("id, status")
-            .eq("reference", reference)
-            .maybeSingle();
+        const { data: paymentByReference, error } =
+            await supabase
+                .from("mawam_payments")
+                .select(`
+                    id,
+                    status,
+                    payment_method,
+                    amount,
+                    amount_unik
+                `)
+                .eq("reference", reference)
+                .maybeSingle();
 
         if (error) {
-            console.error("Error finding payment by reference:", error);
+            console.error(
+                "Error finding payment by reference:",
+                error
+            );
         }
 
         payment = paymentByReference;
     }
 
+    // 3. QRIS DINAMIS → cari berdasarkan amount_unik
+    if (
+        !payment &&
+        data?.paymentMethod?.toUpperCase() === "QRIS" &&
+        data?.qrisType?.toLowerCase() === "dynamic" &&
+        Number.isFinite(mayarAmount)
+    ) {
+        console.log(
+            "Mencari QRIS berdasarkan amount_unik:",
+            mayarAmount
+        );
+
+        const { data: paymentByAmount, error } =
+            await supabase
+                .from("mawam_payments")
+                .select(`
+                    id,
+                    status,
+                    payment_method,
+                    amount,
+                    amount_unik
+                `)
+                .eq("amount_unik", mayarAmount)
+                .eq("payment_method", "qris_dinamis")
+                .eq("status", "pending_payment")
+                .maybeSingle();
+
+        if (error) {
+            console.error(
+                "Error finding payment by amount_unik:",
+                error
+            );
+        }
+
+        payment = paymentByAmount;
+    }
+
+    // ==========================================
+    // PAYMENT TIDAK DITEMUKAN
+    // ==========================================
+
     if (!payment) {
         console.log(
             "Payment not found:",
-            paymentId || reference
+            paymentId || reference || mayarAmount
         );
 
         return new Response(
@@ -697,43 +789,78 @@ async function handleWebhook(req: Request) {
             }),
             {
                 status: 404,
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                },
             }
         );
     }
 
-    // Hindari webhook duplicate
+    console.log(
+        "Mawam Payment ditemukan:",
+        payment.id
+    );
+
+    // ==========================================
+    // CEK DUPLICATE WEBHOOK
+    // ==========================================
+
     if (payment.status === "paid") {
-        console.log("Payment already paid:", payment.id);
+        console.log(
+            "Payment already paid:",
+            payment.id
+        );
 
         return new Response(
             JSON.stringify({
                 success: true,
                 message: "Payment already processed",
+                payment_id: payment.id,
             }),
             {
-                headers: { "Content-Type": "application/json" },
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
             }
         );
     }
 
-    // Update payment
+    // ==========================================
+    // UPDATE PAYMENT
+    // ==========================================
+
+    const updatePayment: any = {
+        status: orderStatus,
+        updated_at: new Date().toISOString(),
+        payment_method:
+            data?.paymentMethod?.toLowerCase() ||
+            payment.payment_method,
+    };
+
+    if (orderStatus === "paid") {
+        updatePayment.paid_at = paidAt;
+    }
+
+    // Untuk QRIS dinamis
+    if (
+        data?.paymentMethod?.toUpperCase() === "QRIS" &&
+        data?.qrisType?.toLowerCase() === "dynamic"
+    ) {
+        updatePayment.payment_method = "qris_dinamis";
+    }
+
     const { error: paymentError } = await supabase
         .from("mawam_payments")
-        .update({
-            status: orderStatus,
-            paid_at:
-                orderStatus === "paid"
-                    ? paidAt
-                    : null,
-            updated_at: new Date().toISOString(),
-            payment_method: data?.paymentMethod,
-            bank: data?.paymentMethod
-        })
+        .update(updatePayment)
         .eq("id", payment.id);
 
     if (paymentError) {
-        console.error("Failed update payment:", paymentError);
+        console.error(
+            "Failed update payment:",
+            paymentError
+        );
 
         return new Response(
             JSON.stringify({
@@ -742,7 +869,9 @@ async function handleWebhook(req: Request) {
             }),
             {
                 status: 500,
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                },
             }
         );
     }
@@ -751,21 +880,27 @@ async function handleWebhook(req: Request) {
         `Payment ${payment.id} updated to ${orderStatus}`
     );
 
-    // Update orders jika pembayaran berhasil
+    // ==========================================
+    // UPDATE ORDER
+    // ==========================================
+
     if (orderStatus === "paid") {
         const { error: orderError } = await supabase
             .from("mawam_orders")
             .update({
-                status: orderStatus,
+                status: "paid",
                 updated_at: new Date().toISOString(),
             })
             .eq("payment_id", payment.id);
 
         if (orderError) {
-            console.error("Failed update orders:", orderError);
+            console.error(
+                "Failed update orders:",
+                orderError
+            );
         }
 
-        // lanjutkan kode shipping Biteship kamu di sini
+        // lanjutkan kode shipping Biteship di sini
     }
 
     return new Response(
@@ -775,6 +910,7 @@ async function handleWebhook(req: Request) {
             status: orderStatus,
         }),
         {
+            status: 200,
             headers: {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
