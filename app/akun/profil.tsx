@@ -26,7 +26,7 @@ export default function ProfilScreen() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      if (!user) {
+      if (user === null) {
         router.replace("/akun");
         return;
       }

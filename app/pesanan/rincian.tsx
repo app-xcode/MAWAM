@@ -34,7 +34,7 @@ export default function ModalScreen() {
   const gambarDefault = "https://cros-image.vercel.app/?quest=https://mawam.expo.app/kosong.webp";
 
   useEffect(() => {
-    if (!user) {
+    if (user === null) {
       router.replace("produk");
     }
     if (user) {

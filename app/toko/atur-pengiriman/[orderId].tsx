@@ -53,7 +53,7 @@ export default function AturPengirimanSeller() {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        if (!user) {
+        if (user === null) {
             router.replace('produk');
             return;
         }

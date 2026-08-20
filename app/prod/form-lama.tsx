@@ -46,7 +46,7 @@ export default function ModalScreen() {
     const selectS = StyleSheet.create({ button: { backgroundColor: bgColor, borderColor: border, padding: 10, marginBottom: 12, height: 40 }, buttonText: { color: textColor }, overlay: { backgroundColor: bgColor + '71', width: 500, maxWidth: '100%', alignSelf: 'center' }, item: { borderColor: border, backgroundColor: textColor }, itemText: { color: bgColor, textAlign: 'center', fontWeight: 'bold' } })
 
     useEffect(() => {
-        if (!user) {
+        if (user === null) {
             router.replace('produk');
         }
     }, [user]);

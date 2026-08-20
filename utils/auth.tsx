@@ -8,7 +8,7 @@ type Props = {
 export function AuthProvider({ children }: Props) {
 
   const [session, setSession] = useState<any>(null)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<any>(undefined)
 
   useEffect(() => {
     // ambil session awal

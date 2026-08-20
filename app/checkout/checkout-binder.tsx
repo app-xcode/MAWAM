@@ -287,7 +287,7 @@ export default function ModalScreen() {
     }, [data]);
 
     useEffect(() => {
-        if (!user) {
+        if (user === null) {
             router.replace('produk');
         }
 

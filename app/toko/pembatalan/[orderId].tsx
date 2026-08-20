@@ -29,7 +29,7 @@ export default function SellerCancellationDetail() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (user === null) {
       router.replace('produk');
       return;
     }

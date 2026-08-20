@@ -52,7 +52,7 @@ export default function ModalScreen() {
         tampilLokasi(latitude, longitude)
     }, [latitude, longitude]);
     useEffect(() => {
-        if (!user) {
+        if (user === null) {
             router.replace('produk');
         }
         if (user) {

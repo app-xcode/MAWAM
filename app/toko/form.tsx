@@ -36,7 +36,7 @@ export default function ModalScreen() {
     const [initialForm, setInitialForm] = useState<any>(null);
 
     useEffect(() => {
-        if (!user) {
+        if (user === null) {
             router.replace('produk');
         }
     }, [user]);

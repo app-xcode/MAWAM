@@ -25,7 +25,7 @@ export default function SellerOrderDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (user === null) {
       router.replace('produk');
       return;
     }

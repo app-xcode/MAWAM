@@ -133,7 +133,7 @@ export default function LacakPesananScreen() {
   }, [shipment?.id]);
 
   useEffect(() => {
-    if (!user) {
+    if (user === null) {
       router.replace("produk");
       return;
     }

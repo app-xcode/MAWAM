@@ -52,7 +52,7 @@ export default function ModalScreen() {
     }, [filterPro, user, tab]);
 
     useEffect(() => {
-        if (!user) {
+        if (user === null) {
             router.replace('produk');
         }
     }, [user]);

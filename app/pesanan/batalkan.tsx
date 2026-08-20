@@ -139,7 +139,7 @@ export default function BatalkanPesananScreen() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) {
+    if (user === null) {
       router.replace("/produk");
       return;
     }
