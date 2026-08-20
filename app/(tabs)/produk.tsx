@@ -13,7 +13,7 @@ import { ClearProduk, produkCache } from '@/utils/cache'
 import { useTheme } from '@/utils/theme'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Link, useLocalSearchParams, useRouter } from 'expo-router'
-import React, { use, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import { useCart } from '@/utils/CartContext'
 import { useLikes } from '@/utils/LikeContext'
@@ -37,8 +37,8 @@ export default function ProdukScreen() {
     const { isDark } = useTheme();
     const colorScheme = isDark ? 'dark' : 'light';
     const [produk, setProduk] = useState<Produk[]>([]);
-    const [allIds, setAllIds] = useState<string[]>([])
     const [page, setPage] = useState(0)
+    const [hasMore, setHasMore] = useState(true)
     const [showSearch, setShowSearch] = useState(false)
     const [querys, setQuerys] = useState('')
     const [statusLoad, setStatusLoad] = useState('Memuat...')
@@ -50,12 +50,11 @@ export default function ProdukScreen() {
     const BgDark = Colors['light'].background;
     const BgLight = Colors['dark'].background;
     const { user } = useAuth();
-    const delayProduk = useRef<ReturnType<typeof setTimeout> | null>(null);
     const delaySearch = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isMounted = useRef(true);
     const [loading, setLoading] = useState(false);
-    const isFetchingIds = useRef(false);
     const isFetchingMore = useRef(false);
+    const requestId = useRef(0);
     const [isExporting, setIsExporting] = useState(false);
     const [showGrid, setShowGrid] = useState(true);
     const [filterPro, setFilterPro] = useState('Populer');
@@ -87,28 +86,6 @@ export default function ProdukScreen() {
     }, []);
 
 
-    const resetAndFetch = () => {
-        setLoading(true);
-        if (delayProduk.current) clearTimeout(delayProduk.current);
-
-        // Gunakan timeout agar state reset selesai diproses sebelum fetch mulai
-        delayProduk.current = setTimeout(async () => {
-            if (isFetchingIds.current) return;
-
-            // 1. Reset state seminimal mungkin
-            // if (!q) {
-            setProduk([]);
-            // }
-            setAllIds([]);
-            setPage(0);
-            setStatusLoad('Memuat...');
-
-            // 2. Jalankan fetch
-            fetchIds();
-        }, 500);
-    };
-
-
     // useEffect jadi lebih bersih
     useEffect(() => {
         if (aksi === 'reload') {
@@ -121,8 +98,6 @@ export default function ProdukScreen() {
         }
         else if (aksi === 'delete' && id) {
             setProduk(prev => prev.filter(item => item.id !== id));
-            setAllIds(prev => prev.filter(item => item !== id));
-            // produkCache[id] = null;
             router.setParams({ aksi: 'not', id: '' });
         }
         else if (aksi === 'edit' && id) {
@@ -142,7 +117,6 @@ export default function ProdukScreen() {
                 let { data: newData } = await supabase.from('mawam_produk').select(`*, mawam_toko:toko_id(*)`).eq('id', id).single();
                 if (newData) {
                     setProduk(prev => [newData, ...prev]);
-                    setAllIds(prev => [newData.id, ...prev]);
                     produkCache[newData.id] = newData;
                     router.setParams({ aksi: 'not', id: '' });
                 }
@@ -158,27 +132,18 @@ export default function ProdukScreen() {
         setShowGrid(!myLikes)
     }, [myLikes])
     useEffect(() => {
-        if (querys.trim() !== '') {
-            setLoading(true);
-            const keyword = querys.toLowerCase();
-
-            // Filter dari data yang sudah terlanjur di-load di state
-            const hasilLokal = produk.filter(item =>
-                item.nama_produk.toLowerCase().includes(keyword) ||
-                // item.harga.toString().includes(keyword) ||
-                item.deskripsi.toLowerCase().includes(keyword)
-            );
-
-            setProduk(hasilLokal);
-        }
         if (delaySearch.current) clearTimeout(delaySearch.current);
         delaySearch.current = setTimeout(() => {
-            router.setParams({ q: querys.trim(), aksi: showSearch ? 'cari' : 'reload' });
-        }, 1000)
-    }, [querys])
+            router.setParams({ q: querys.trim(), aksi: 'cari' });
+        }, 400);
+
+        return () => {
+            if (delaySearch.current) clearTimeout(delaySearch.current);
+        };
+    }, [querys]);
 
 
-    const fetchIds = () => {
+    /* const fetchIds = () => {
         if (delayProduk.current) clearTimeout(delayProduk.current);
         delayProduk.current = setTimeout(async () => {
             // console.log('fetchIds ' + (Date.now().toLocaleString() || ''));
@@ -320,7 +285,76 @@ export default function ProdukScreen() {
         if (allIds.length > 0) {
             fetchMore()
         }
-    }, [allIds])
+    }, [allIds]) */
+
+    const fetchMore = async (pageToLoad = page, replace = false) => {
+        if ((isFetchingMore.current && !replace) || (!hasMore && !replace)) return;
+
+        const currentRequestId = replace ? ++requestId.current : requestId.current;
+        isFetchingMore.current = true;
+        setLoading(true);
+        setStatusLoad('Memuat...');
+
+        try {
+            if (myLikes && likes.size === 0) {
+                if (replace) setProduk([]);
+                setHasMore(false);
+                return;
+            }
+
+            const start = pageToLoad * LIMIT;
+            let query: any = supabase
+                .from('mawam_produk')
+                .select('*, mawam_toko(*)');
+
+            if (myLikes) query = query.in('id', [...likes]);
+            if (typeof q === 'string' && q.trim()) {
+                query = query.or(`nama_produk.ilike.%${q}%,deskripsi.ilike.%${q}%`);
+            }
+
+            if (filterPro === 'Populer') query = query.order('view', { ascending: false });
+            else if (filterPro === 'Terbaru') query = query.order('created_at', { ascending: false });
+            else if (filterPro === 'Terlaris') query = query.order('terjual', { ascending: false });
+            else if (filterPro === 'Harga') query = query.order('harga', { ascending: hargaAsc });
+            else query = query.order('created_at', { ascending: false });
+
+            const { data, error } = await query
+                .order('id', { ascending: false })
+                .range(start, start + LIMIT - 1);
+
+            if (currentRequestId !== requestId.current || !isMounted.current) return;
+            if (error) {
+                setStatusLoad('Gagal memuat produk');
+                return;
+            }
+
+            const results = data || [];
+            results.forEach((item: any) => { produkCache[item.id] = item; });
+            setProduk((prev) => replace ? results : [...prev, ...results]);
+            setPage(pageToLoad + 1);
+            setHasMore(results.length === LIMIT);
+        } catch (error) {
+            console.error(error);
+            setStatusLoad('Gagal memuat produk');
+        } finally {
+            if (currentRequestId === requestId.current) {
+                isFetchingMore.current = false;
+                setLoading(false);
+            }
+        }
+    };
+
+    const resetAndFetch = () => {
+        setProduk([]);
+        setPage(0);
+        setHasMore(true);
+        setStatusLoad('Memuat...');
+        fetchMore(0, true);
+    };
+
+    useEffect(() => {
+        router.setParams({ aksi: 'reload' });
+    }, [filterPro, myLikes, hargaAsc]);
 
     const renderItem = ({ item }: any) => {
         const isLiked = likes.has(item.id);
@@ -555,11 +589,8 @@ export default function ProdukScreen() {
                             key={tab}
                             onPress={() => {
                                 if (tab == 'Harga') {
-                                    setFilterPro("");
-                                    setTimeout(() => {
-                                        setFilterPro(tab);
-                                        setHargaAsc(prev => !prev);
-                                    }, 100);
+                                    setFilterPro(tab);
+                                    setHargaAsc(prev => !prev);
                                 } else {
                                     setFilterPro(tab)
                                 }
