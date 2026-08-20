@@ -399,7 +399,7 @@ export default function ModalScreen() {
               >
                 <ThemedText>Metode Pembayaran</ThemedText>
                 <ThemedText style={{ opacity: 0.7 }}>
-                  {data?.mawam_payments?.payment_method == 'bank_transfer' ? 'Transfer Bank ' + data?.mawam_payments?.bank.toUpperCase() : data?.mawam_payments?.bank.toUpperCase()}
+                  {data?.mawam_payments?.payment_method == 'bank_transfer' ? 'Transfer Bank ' + data?.mawam_payments?.bank?.toUpperCase() : data?.mawam_payments?.bank?.toUpperCase()}
                 </ThemedText>
               </TouchableOpacity>
               {data?.mawam_payments?.verification_status && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, justifyContent: 'space-between' }}>
@@ -545,11 +545,9 @@ export default function ModalScreen() {
           {data && data?.status.includes('pending') && <TouchableOpacity style={[styles.button, { width: "49%" }]}
             onPress={() => {
               router.navigate({
-                pathname: 'pembayaran/pembayaran',
+                pathname: 'pembayaran/mayar',
                 params: {
-                  paymentId: data.payment?.id,
-                  payment_type: data.payment?.payment_method,
-                  bank: data.payment?.bank
+                  paymentId: data.payment?.id
                 }
               })
             }}

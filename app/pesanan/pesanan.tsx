@@ -324,14 +324,14 @@ export default function ModalScreen() {
                                     >
                                         <View style={{ flexDirection: "row", gap: 2 }}>
                                             <ThemedText style={{ opacity: 0.8 }}>
-                                                {["manual_transfer", "manual_qris"].includes(
+                                                {["manual_transfer", "qris_dinamis"].includes(
                                                     section.payment?.payment_method
                                                 )
-                                                    ? "Segera Bayar Manual"
+                                                    ? "Segera Bayar"
                                                     : "Bayar dalam"}
                                             </ThemedText>
 
-                                            {!["manual_transfer", "manual_qris"].includes(
+                                            {!["manual_transfer", "qris_dinamis"].includes(
                                                 section.payment?.payment_method
                                             ) && (
                                                     <Countdown expiredAt={section.payment?.expired_at} />
@@ -342,7 +342,7 @@ export default function ModalScreen() {
                                                     ? `dengan Bank ${section.payment?.bank}`
                                                     : section.payment?.payment_method === "manual_transfer"
                                                         ? "ke rekening admin"
-                                                        : section.payment?.payment_method === "manual_qris"
+                                                        : section.payment?.payment_method === "qris_dinamis"
                                                             ? "melalui QRIS"
                                                             : section.payment?.payment_method}
                                             </ThemedText>
@@ -411,11 +411,9 @@ export default function ModalScreen() {
                                         </TouchableOpacity> */}
                                         <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => {
                                             router.navigate({
-                                                pathname: 'pembayaran/pembayaran',
+                                                pathname: 'pembayaran/mayar',
                                                 params: {
-                                                    paymentId: section.payment?.id,
-                                                    payment_type: section.payment?.payment_method,
-                                                    bank: section.payment?.bank
+                                                    paymentId: section.payment?.id
                                                 }
                                             })
                                         }} >

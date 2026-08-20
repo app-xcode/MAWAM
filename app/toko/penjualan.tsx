@@ -402,11 +402,9 @@ export default function ModalScreen() {
                                         </TouchableOpacity> */}
                                         <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => {
                                             router.navigate({
-                                                pathname: 'pembayaran/pembayaran',
+                                                pathname: 'pembayaran/mayar',
                                                 params: {
-                                                    paymentId: section.payment?.id,
-                                                    payment_type: section.payment?.payment_method,
-                                                    bank: section.payment?.bank
+                                                    paymentId: section.payment?.id
                                                 }
                                             })
                                         }} >

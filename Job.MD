@@ -195,3 +195,14 @@ eq.4669c6f0-13a6-4574-b9dc-294818c6afaa
     "hint": null,
     "message": "Could not find the 'biteship_order_id' column of 'mawam_pengiriman' in the schema cache"
 }
+
+
+
+-batalkan invoice di mayar.
+- idenya bayar sekarang dengan Qris.
+- jadi kalau pilih bayar nanti berarti kembali dengan metode mayar
+
+update lainnya juga const totalBayar =
+    dataPayment.payment_method === "qris_dinamis"
+        ? dataPayment.amount_unik
+        : dataPayment.amount;

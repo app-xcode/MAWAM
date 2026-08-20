@@ -41,8 +41,8 @@ export default function ModalScreen() {
     const [subtotalKurir, setSubtotalKurir] = useState(0);
     const [total, setTotal] = useState(0);
     const [biayaLayanan, setBiayaLayanan] = useState(2000);
-    const [metodeBayar, setMetodeBayar] = useState('manual_qris');
-    const [bankBayar, setBankBayar] = useState('manual_qris');
+    const [metodeBayar, setMetodeBayar] = useState('qris_dinamis');
+    const [bankBayar, setBankBayar] = useState('qris_dinamis');
     const [toggleMethod, setToggleMethod] = useState(true);
     const [pilihKurir, setpilihKurir] = useState<any>(null);
     const [pengiriman, setPengiriman] = useState<any[]>([]);
@@ -54,7 +54,7 @@ export default function ModalScreen() {
         price: number,
         service: string,
         type: string,
-        description:string
+        description: string
     }
     interface Pengiriman {
         target_toko: string,
@@ -191,11 +191,11 @@ export default function ModalScreen() {
                     const harga_akhir = item.discount ? item.harga - (item.harga * (item.discount / 100)) : item.harga;
                     const weight = item?.satuan.toLowerCase() == 'kg' ? 1000 : item.jumlah;
                     const jumlah = item?.satuan.toLowerCase() == 'g' ? item.jumlah / 1000 : item.jumlah;
-                    const dimensi = hitungDimensiBawang((weight * jumlah)/1000);
+                    const dimensi = hitungDimensiBawang((weight * jumlah) / 1000);
                     items.push(
                         {
                             name: item.nama_produk,
-                            description: `${item.nama_produk}, total berat ${(weight * jumlah)/1000} ${item.satuan} `,
+                            description: `${item.nama_produk}, total berat ${(weight * jumlah) / 1000} ${item.satuan} `,
                             value: harga_akhir * jumlah,
                             weight: weight * jumlah,
                             ...dimensi
@@ -398,7 +398,7 @@ export default function ModalScreen() {
                 reference,
                 amount,
                 status: "pending_payment",
-                payment_method: metodeBayar ?? 'manual_qris',
+                payment_method: metodeBayar ?? 'qris_dinamis',
                 bank: bankBayar ?? 'bri',
             })
             .select()
@@ -539,47 +539,18 @@ export default function ModalScreen() {
     };
     const methods: PaymentMethod[] = [
         {
-            id: "manual_qris",
-            type: "manual_qris",
-            title: "Bayar dengan QRIS",
+            id: "qris_dinamis",
+            type: "qris_dinamis",
+            title: "QRIS Tampil",
             icon: "qr-code-outline",
         },
-         {
-            id: "manual_transfer",
-            type: "manual_transfer",
-            title: "Transfer Manual",
+        {
+            id: "mayar",
+            type: "mayar",
+            title: "Pembayaran Mayar",
             icon: "card-outline",
         },
-        {
-            id: "bri",
-            type: "bank_transfer",
-            title: "Transfer Bank BRI",
-            icon: "repeat-outline",
-        },
-        {
-            id: "bni",
-            type: "bank_transfer",
-            title: "Transfer Bank BNI",
-            icon: "repeat-outline",
-        },
-        {
-            id: "bca",
-            type: "bank_transfer",
-            title: "Transfer Bank BCA",
-            icon: "repeat-outline",
-        },
-        {
-            id: "qris",
-            type: "qris",
-            title: "QRIS",
-            icon: "qr-code-outline",
-        },
-        // {
-        //     id: "cod",
-        //     type: "cod",
-        //     title: "Bayar di Tempat (COD)",
-        //     icon: "cash-outline",
-        // },
+
     ];
 
     return (
@@ -958,22 +929,22 @@ export default function ModalScreen() {
                             const success1 = orders ? await createOrderItems(orders) : false;
                             const success2 = orders ? await createPengiriman(orders) : false;
                             if (success1 && success2) {
-                               if(orders && orders.length>0){ for (const order of orders) {
-                                    try {
-                                        await notifyOrderCreatedToBuyer(order.buyer_id, order.id);
-                                        await notifyOrderCreatedToSeller(order.seller_id, order.id);
-                                    } catch (error) {
-                                        console.log('Order notification error', error);
+                                if (orders && orders.length > 0) {
+                                    for (const order of orders) {
+                                        try {
+                                            await notifyOrderCreatedToBuyer(order.buyer_id, order.id);
+                                            await notifyOrderCreatedToSeller(order.seller_id, order.id);
+                                        } catch (error) {
+                                            console.log('Order notification error', error);
+                                        }
                                     }
-                                }}
+                                }
                                 const del = await deleteCart(cartIds);
                                 if (del) {
                                     router.replace({
-                                        pathname: "pembayaran/pembayaran",
+                                        pathname: "pembayaran/mayar",
                                         params: {
-                                            paymentId: payment.id,
-                                            payment_type: ['cod', 'qris', 'manual_transfer', 'manual_qris'].indexOf(metodeBayar) == -1 ? 'bank_transfer' : metodeBayar,
-                                            bank: bankBayar
+                                            paymentId: payment.id
                                         },
                                     });
                                 }
