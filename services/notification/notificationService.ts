@@ -16,16 +16,14 @@ export async function createNotification(payload: NotificationPayload) {
       dedupe_key: dedupeKey || null,
     };
 
-    let insertQuery = supabase.from('notifikasi').insert(insertPayload).select();
-    if (dedupeKey) {
-      // use onConflict to ignore duplicate dedupe_key for same user
-      insertQuery = (insertQuery as any).onConflict('user_id,dedupe_key').ignore();
-    }
+    const { data: inserted, error: insertError } = await supabase
+      .from('notifikasi')
+      .insert(insertPayload)
+      .select();
 
-    const { data: inserted, error: insertError } = await insertQuery;
-    if (insertError) {
+    // Unique index pada dedupe_key akan menolak duplikat; ini kondisi normal.
+    if (insertError && insertError.code !== '23505') {
       console.error('createNotification insert error', insertError);
-      // still continue to try sending push if appropriate
     }
 
     const notificationRow = Array.isArray(inserted) && inserted.length ? inserted[0] : null;

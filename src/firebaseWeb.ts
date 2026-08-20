@@ -32,11 +32,11 @@ export async function initFirebaseMessaging() {
     return null;
   }
 
-  console.log('Firebase Web config loaded:', {
-    projectId: firebaseConfig.projectId,
-    appId: firebaseConfig.appId,
-    messagingSenderId: firebaseConfig.messagingSenderId,
-  });
+  // console.log('Firebase Web config loaded:', {
+  //   projectId: firebaseConfig.projectId,
+  //   appId: firebaseConfig.appId,
+  //   messagingSenderId: firebaseConfig.messagingSenderId,
+  // });
 
   try {
     if (!getApps().length) {

@@ -45,7 +45,7 @@ async function registerWebToken(userId: string) {
     if (token) {
       console.log('FCM token obtained (web):', token);
       await addToken(userId, token, 'web');
-      console.log('FCM token saved (web):', token);
+      // console.log('FCM token saved (web):', token);
       return token;
     }
   } catch (err) {
@@ -77,7 +77,7 @@ async function registerAndroidToken(userId: string) {
     if (token) {
       console.log('FCM token obtained (android):', token);
       await addToken(userId, token, 'android');
-      console.log('FCM token saved (android):', token);
+      // console.log('FCM token saved (android):', token);
       return token;
     }
   } catch (err) {
@@ -86,10 +86,42 @@ async function registerAndroidToken(userId: string) {
   return null;
 }
 
+export async function registerNotificationToken(userId: string) {
+  return Platform.OS === 'web'
+    ? registerWebToken(userId)
+    : registerAndroidToken(userId);
+}
+
+async function listenWebForegroundNotifications() {
+  const mod = await import('@/src/firebaseWeb');
+  const messaging = await mod.initFirebaseMessaging();
+  if (!messaging) return null;
+
+  const { onMessage } = await import('firebase/messaging');
+  return onMessage(messaging, (payload) => {
+    if (Notification.permission !== 'granted') return;
+    new Notification(payload.notification?.title || 'MAWAM', {
+      body: payload.notification?.body || '',
+      data: payload.data,
+    });
+  });
+}
+
 export default function FCMRegistrar() {
   const { user } = useAuth();
   const currentTokenRef = useRef<string | null>(null);
   const currentUserRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    let unsubscribe: (() => void) | null = null;
+    listenWebForegroundNotifications().then((listener) => {
+      unsubscribe = listener;
+    }).catch((err) => console.error('FCM foreground listener error', err));
+
+    return () => unsubscribe?.();
+  }, []);
 
   useEffect(() => {
     currentUserRef.current = user?.id ?? null;
@@ -112,13 +144,8 @@ export default function FCMRegistrar() {
       }
 
       try {
-        if (Platform.OS === 'web') {
-          const t = await registerWebToken(user.id);
-          if (t) currentTokenRef.current = t;
-        } else {
-          const t = await registerAndroidToken(user.id);
-          if (t) currentTokenRef.current = t;
-        }
+        const token = await registerNotificationToken(user.id);
+        if (token) currentTokenRef.current = token;
       } catch (err) {
         console.error('FCM registration error', err);
       }

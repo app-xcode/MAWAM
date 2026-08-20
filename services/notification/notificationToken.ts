@@ -5,7 +5,7 @@ export async function addToken(userId: string, token: string, platform: string |
     const payload = { user_id: userId, token, platform };
     const { data, error } = await supabase
       .from('notification_tokens')
-      .upsert(payload, { onConflict: ['user_id', 'token'] })
+      .upsert(payload, { onConflict: 'user_id,token' })
       .select()
       .single();
     if (error) throw error;

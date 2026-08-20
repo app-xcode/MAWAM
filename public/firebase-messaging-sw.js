@@ -17,11 +17,11 @@ const firebaseConfig = {
     importScripts('https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js');
     importScripts('https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js');
 
-    console.log('Firebase Web config loaded:', {
-      projectId: firebaseConfig.projectId,
-      appId: firebaseConfig.appId,
-      messagingSenderId: firebaseConfig.messagingSenderId,
-    });
+    // console.log('Firebase Web config loaded:', {
+    //   projectId: firebaseConfig.projectId,
+    //   appId: firebaseConfig.appId,
+    //   messagingSenderId: firebaseConfig.messagingSenderId,
+    // });
 
     firebase.initializeApp(firebaseConfig);
     const messaging = firebase.messaging();

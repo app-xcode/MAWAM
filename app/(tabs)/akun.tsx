@@ -8,6 +8,7 @@ import { formatWaktu } from "@/constants/countDown";
 import { Colors } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { notifyLoginSuccess } from "@/services/notification/notificationTriggers";
+import { registerNotificationToken } from "@/components/FCMRegistrar";
 import { useCart } from "@/utils/CartContext";
 import { useAuth } from "@/utils/auth";
 import { useTheme } from "@/utils/theme";
@@ -239,6 +240,7 @@ export default function Akun() {
       else {
         if (data.user) {
           try {
+            await registerNotificationToken(data.user.id);
             await notifyLoginSuccess(data.user.id);
           } catch (notificationError) {
             console.log('Login notification error', notificationError);

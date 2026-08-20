@@ -1,4 +1,14 @@
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: corsHeaders });
+
 function base64UrlEncode(buf: Uint8Array) {
   let str = btoa(String.fromCharCode(...Array.from(buf)));
   return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -62,6 +72,10 @@ async function getAccessToken(sa: any) {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -69,7 +83,7 @@ Deno.serve(async (req: Request) => {
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !FIREBASE_SERVICE_ACCOUNT) {
       console.error('missing env secrets');
-      return new Response(JSON.stringify({ ok: false, error: 'missing_env' }), { status: 500 });
+      return jsonResponse({ ok: false, error: 'missing_env' }, 500);
     }
 
     const sa = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
@@ -79,7 +93,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { tokens, notification, data } = body;
     if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-      return new Response(JSON.stringify({ ok: false, error: 'no_tokens' }), { status: 400 });
+      return jsonResponse({ ok: false, error: 'no_tokens' }, 400);
     }
 
     const accessToken = await getAccessToken(sa);
@@ -141,9 +155,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, badTokens }), { status: 200 });
+    return jsonResponse({ ok: true, badTokens });
   } catch (err) {
     console.error('send-fcm function error', err);
-    return new Response(JSON.stringify({ ok: false, error: String(err) }), { status: 500 });
+    return jsonResponse({ ok: false, error: String(err) }, 500);
   }
 });
