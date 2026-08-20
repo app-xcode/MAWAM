@@ -1,14 +1,13 @@
 import ThemedInput from '@/components/themed-input'
 import { ThemedText } from '@/components/themed-text'
 import { ThemedView } from '@/components/themed-view'
-import { CustomSelect } from '@/components/ui/CustomSelect'
 import Alerts from '@/constants/Alerts'
 import { Colors } from '@/constants/theme'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/utils/auth'
 import { useTheme } from '@/utils/theme'
 import { Stack, router, useLocalSearchParams } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { ActivityIndicator, Platform, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
 const ColorDark = Colors['light'].tint;
@@ -16,8 +15,7 @@ const ColorLight = Colors['dark'].tint;
 import MapPicker from "@/components/ui/MapPicker";
 
 export default function ModalScreen() {
-    const [lat, setLat] = useState(0);
-    const [lng, setLng] = useState(0);
+    const KEY_GOOGLE = "AIzaSyB5Zf-tTLdsCoDhVJiv4klSDqpw4cX9U0Y";
     const [latitude, setLatitude] = useState(-10.176596);
     const [longitude, setLongitude] = useState(123.6224666);
     const [popup, setPopup] = useState<any>(null);
@@ -29,17 +27,8 @@ export default function ModalScreen() {
     const iconColor = Colors[colorScheme].icon;
     const border = Colors[colorScheme].border;
     const bgColor = Colors[colorScheme].inputBg;
-    const textColor = Colors[colorScheme].text;
     const gambarDefault = 'https://cros-image.vercel.app/?quest=https://mawam.expo.app/kosong.webp';
-    const [provinsis, setProvinsis] = useState<any>([]);
-    const [kabupatens, setKabupatens] = useState<any>([]);
-    const [kecamatans, setKecamatans] = useState<any>([]);
-    const [desas, setDesas] = useState<any>([]);
     const [kodeposs, setKodePoss] = useState<any>([]);
-    const [provinsi, setProvinsi] = useState<number>(0);
-    const [kabupaten, setKabupaten] = useState<number>(0);
-    const [kecamatan, setKecamatan] = useState<number>(0);
-    const [desa, setDesa] = useState<number>(0);
     const [kode_pos, setKode_Pos] = useState<string>('');
     const [alamat_pos, setAlamat_Pos] = useState<string>('');
     const [prov, setProv] = useState<string>('');
@@ -47,6 +36,12 @@ export default function ModalScreen() {
     const [keca, setKeca] = useState<string>('');
     const [des, setDes] = useState<string>('');
     const [pointAlamat, setPointAlamat] = useState<string>('');
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [searchResults, setSearchResults] = useState<any>([]);
+    const searchTimeout = useRef<any>(null);
+    const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const searchController = useRef<AbortController | null>(null);
+    const [hasilLokasi, setHasilLokasi] = useState<any[]>([]);
 
     useEffect(() => {
         tampilLokasi(latitude, longitude)
@@ -60,18 +55,40 @@ export default function ModalScreen() {
         }
     }, [user]);
 
-    useEffect(() => {
-        fetchKab(provinsi)
-    }, [provinsi]);
-    useEffect(() => {
-        fetchKec(kabupaten)
-    }, [kabupaten]);
-    useEffect(() => {
-        fetchDesa(kecamatan)
-    }, [kecamatan]);
-    useEffect(() => {
-        fetchKodePos([des, keca, prov].join(' '))
-    }, [des]);
+
+    const fetchAddressByQuery = async (q: string, allowCoords: boolean = true) => {
+        if (!q) return;
+        try {
+            const res = await fetch(`https://kodepos.vercel.app/search/?q=${encodeURIComponent(q)}`);
+            const json = await res.json();
+            const first = (json?.data || [])[0];
+            if (!first) return;
+
+            const village = first.village || '';
+            const district = first.district || '';
+            const regency = first.regency || '';
+            const province = first.province || '';
+            const code = String(first.code || first.postal || '');
+            const lat = Number(first.latitude);
+            const lng = Number(first.longitude);
+
+            setDes(village);
+            setKeca(district);
+            setKabu(regency);
+            setProv(province);
+            setKode_Pos(code);
+            setKodePoss([{ value: code, label: [code, village, district, regency, province].filter(Boolean).join(', '), latitude: lat, longitude: lng }]);
+
+            if (allowCoords && Number.isFinite(lat) && Number.isFinite(lng)) {
+                setLatitude(lat);
+                setLongitude(lng);
+            }
+
+            setPointAlamat([village, district, regency, province].filter(Boolean).join(', '));
+        } catch (e) {
+            console.log('fetchAddressByQuery error', e);
+        }
+    }
 
     const fetchAkun = async () => {
         const { data, error } = await supabase
@@ -107,106 +124,94 @@ export default function ModalScreen() {
             }
             if (data.kode_alamat) {
                 const [pro, kab, kec, des] = data.kode_alamat?.split('.');
-                fetchProv(pro);
-                pro && fetchKab(pro, kab)
-                kab && fetchKec(kab, kec)
-                kec && fetchDesa(kec, des)
             } else {
-                fetchProv();
             }
             setDataUser(data);
+            // Jika profil memiliki kode_pos atau alamat/desa, coba isi field dari API kodepos
+            const profileQuery = (data.kode_pos ? String(data.kode_pos) : '') + ' ' + (data.desa ? String(data.desa).split('\n').join(' ') : '');
+            if (profileQuery.trim()) {
+                // Prioritaskan kode_pos bila ada
+                const q = data.kode_pos ? `${data.kode_pos} ${data.desa ?? ''}` : data.desa;
+                console.log(q, profileQuery)
+                const hasDbCoords = (data.latitude !== undefined && data.latitude !== null) && (data.longitude !== undefined && data.longitude !== null);
+                fetchAddressByQuery(q?.toString().trim() ?? profileQuery, !hasDbCoords);
+            }
         } else {
             router.push('/toko/form');
         }
     };
-    const fetchProv = async (pro: any = null) => {
-        const { data } = await supabase
-            .from('provinsi')
-            .select('*')
-            .order('nama');
-        if (data) {
-            setProvinsis(data.map((item) => {
-                pro && pro == item.id && setProvinsi(item.id)
-                pro && pro == item.id && setProv(item.nama)
-                return { value: item.id, label: item.nama }
-            }))
-        }
-    };
-    const fetchKab = async (id_prov: any, kab: any = null) => {
-        const { data } = await supabase
-            .from('kabupaten')
-            .select('*')
-            .eq('provinsi_id', id_prov)
-            .order('nama');
-        if (data) {
-            setKabupatens(data.map((item) => {
-                kab && kab == item.id && setKabupaten(item.id)
-                kab && kab == item.id && setKabu(item.nama)
-                return { value: item.id, label: item.nama }
-            }))
-        }
-    };
-    const fetchKec = async (id_kab: any, kec: any = null) => {
-        const { data } = await supabase
-            .from('kecamatan')
-            .select('*')
-            .eq('kabupaten_id', id_kab)
-            .order('nama');
-        if (data) {
-            setKecamatans(data.map((item) => {
-                kec && kec == item.id && setKecamatan(item.id)
-                kec && kec == item.id && setKeca(item.nama)
-                return { value: item.id, label: item.nama }
-            }))
-        }
-    };
-    const fetchDesa = async (id_kec: any, des: any = null) => {
-        const { data } = await supabase
-            .from('desa')
-            .select('*')
-            .eq('kecamatan_id', id_kec)
-            .order('nama');
-        if (data) {
-            setDesas(data.map((item) => {
-                des && des == item.id && setDesa(item.id)
-                des && des == item.id && setDes(item.nama)
-                return { value: item.id, label: item.nama }
-            }))
-        }
-    };
-    const fetchKodePos = async (data: any, loop: boolean = true) => {
-        if (data?.trim().length == 0) {
-            return;
-        }
-        const keyword = data.replace(/\s/gi, '+').replace('Daerah+Khusus+Ibukota', 'DKI');
-        const res = await fetch(`https://kodepos.vercel.app/search/?q=${keyword}`);
-        const json = await res.json();
-        if (json && json?.statusCode == 200 && json?.code == 'OK') {
-            if (json?.data && json?.data.length) {
-                const kodes = json?.data.filter((item: any) => item?.village == des);
-                const pos = kodes.map((item: any) => {
-                    if ((latitude === -10.176596 || item.code != kode_pos) && item.latitude && item.longitude) {
-                        setLatitude(item.latitude)
-                        setLongitude(item.longitude)
-                    }
-                    return { value: parseInt(item.code), label: [item.code, item.village, item.district, item.regency, item.province].join(', ') }
-                });
-                setKodePoss(pos);
-                if (!kode_pos) {
-                    setKode_Pos(pos[0]?.value)
-                }
-            } else {
-                Alerts('Kode pos tidak ditemukan', 'error');
-                loop && fetchKodePos(data, !loop)
+
+
+    const tampilLokasi = async (
+        lat: number,
+        lng: number,
+        lok?: string
+    ): Promise<any> => {
+
+        // Jika sedang mencari berdasarkan nama
+        if (lok) {
+
+            // Batalkan timer sebelumnya
+            if (searchTimer.current) {
+                clearTimeout(searchTimer.current);
             }
+
+            // Batalkan request sebelumnya
+            searchController.current?.abort();
+
+            return new Promise((resolve, reject) => {
+
+                searchTimer.current = setTimeout(async () => {
+
+                    try {
+                        searchController.current = new AbortController();
+
+                        const url =
+                            `https://maps.googleapis.com/maps/api/place/textsearch/json` +
+                            `?query=${encodeURIComponent(lok)}` +
+                            `&location=${lat}%2C${lng}` +
+                            `&radius=5000` +
+                            `&key=${KEY_GOOGLE}`;
+
+                        const res = await fetch(
+                            'https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/proxy?url=' +
+                            encodeURIComponent(url),
+                            {
+                                signal: searchController.current.signal,
+                            }
+                        );
+
+                        const json = await res.json();
+
+                        resolve(json);
+
+                    } catch (error: any) {
+
+                        // Request sebelumnya memang dibatalkan
+                        if (error?.name === 'AbortError') {
+                            return;
+                        }
+
+                        reject(error);
+                    }
+
+                }, 500); // tunggu 500ms setelah berhenti mengetik
+            });
         }
-    };
-    const tampilLokasi = async (lat: number, lng: number) => {
+
+        // =========================
+        // PENCARIAN BERDASARKAN GPS
+        // =========================
+
+        const url =
+            `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
+            `?location=${lat}%2C${lng}` +
+            `&radius=30` +
+            `&key=${KEY_GOOGLE}`;
+
         const res = await fetch(
             'https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/proxy?url=' +
-            encodeURIComponent(
-                `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat}%2C${lng}&radius=30&key=AIzaSyB5Zf-tTLdsCoDhVJiv4klSDqpw4cX9U0Y`
-            )
+            encodeURIComponent(url)
         );
 
         const json = await res.json();
@@ -220,6 +225,7 @@ export default function ModalScreen() {
         }
 
         if (json?.status === "OK" && json?.results) {
+
             const tempat = json.results.filter(
                 (r: any) =>
                     r.business_status === "OPERATIONAL" &&
@@ -227,7 +233,6 @@ export default function ModalScreen() {
             );
 
             const lokasi = tempat[0];
-
 
             setPopup({
                 id: lokasi?.place_id,
@@ -239,7 +244,9 @@ export default function ModalScreen() {
                 (lokasi?.name ? lokasi.name + ', ' : '') +
                 (lokasi?.plus_code?.compound_code ?? '')
             );
-        } else if(dataUser?.pin_map) {
+
+        } else if (dataUser?.pin_map) {
+
             setPopup({
                 id: undefined,
                 name: dataUser?.pin_map,
@@ -265,16 +272,19 @@ export default function ModalScreen() {
     }
 
     async function updateProfile() {
-        if (provinsi && kabupaten && kecamatan && desa && dataUser.nama && dataUser.no_hp && dataUser.alamat) {
+        const hasTextAreas = prov && kabu && keca && des;
+
+        if (hasTextAreas && dataUser.nama && dataUser.no_hp && dataUser.alamat) {
             const { error } = await supabase.from('mawam_profile').update({
                 nama: dataUser.nama,
                 no_hp: dataUser.no_hp,
                 alamat: dataUser.alamat.trim() + "\n" + ([kode_pos, des, keca, kabu, prov].join(', ')),
-                kode_alamat: [provinsi, kabupaten, kecamatan, desa].join('.'),
+                kode_alamat: [prov, kabu, keca, des].join(' '),
                 kode_pos: kode_pos,
                 latitude,
                 longitude,
-                pin_map: pointAlamat
+                pin_map: pointAlamat,
+                desa: des
             }).eq('id', user.id);
             !error && Alerts('Berhasil Ubah', 'success')
             cart && router.replace({ pathname: 'checkout/checkout', params: { cart } })
@@ -284,7 +294,76 @@ export default function ModalScreen() {
         }
     }
 
-    const selectS = StyleSheet.create({ button: { backgroundColor: bgColor, borderColor: border, padding: 10, marginBottom: 12, height: 40, overflow: 'hidden' }, buttonText: { color: textColor }, overlay: { backgroundColor: bgColor + '71', width: 500, maxWidth: '100%', alignSelf: 'center' }, item: { borderColor: border, backgroundColor: textColor }, itemText: { color: bgColor, textAlign: 'center', fontWeight: 'bold' } })
+    const fetchAddressSuggestions = async (q: string) => {
+        if (!q || q.trim().length < 2) {
+            setSearchResults([]);
+            return;
+        }
+        try {
+            const res = await fetch(`https://kodepos.vercel.app/search/?q=${encodeURIComponent(q)}`);
+            const json = await res.json();
+            const items = (json?.data || []).map((it: any, idx: number) => ({
+                value: JSON.stringify(it),
+                label: [it.village, it.district, it.regency, it.province, it.code].filter(Boolean).join(', ')
+            }));
+            setSearchResults(items);
+        } catch (e) {
+            console.log('fetchAddressSuggestions error', e);
+            setSearchResults([]);
+        }
+    }
+
+    const handleSelectSuggestion = (item: any) => {
+        try {
+            const obj = typeof item.value === 'string' ? JSON.parse(item.value) : item;
+            const village = obj.village || '';
+            const district = obj.district || '';
+            const regency = obj.regency || '';
+            const province = obj.province || '';
+            const code = String(obj.code || obj.postal || '');
+            const lat = Number(obj.latitude);
+            const lng = Number(obj.longitude);
+
+            setDes(village);
+            setKeca(district);
+            setKabu(regency);
+            setProv(province);
+
+            setKode_Pos(code);
+            setKodePoss([{ value: code, label: [code, village, district, regency, province].filter(Boolean).join(', '), latitude: lat, longitude: lng }]);
+
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                setLatitude(lat);
+                setLongitude(lng);
+            }
+
+            setPointAlamat([village, district, regency, province].filter(Boolean).join(', '));
+            setSearchResults([]);
+            setSearchQuery('');
+        } catch (e) {
+            console.log('handleSelectSuggestion error', e);
+        }
+    }
+
+
+    const fetchAreaCoords = async (table: string, id: any) => {
+        if (!id) return;
+        try {
+            const { data } = await supabase.from(table).select('latitude,longitude').eq('id', id).single();
+            if (data) {
+                const latVal = Number(data.latitude);
+                const lngVal = Number(data.longitude);
+                if (Number.isFinite(latVal) && Number.isFinite(lngVal)) {
+                    setLatitude(latVal);
+                    setLongitude(lngVal);
+                }
+            }
+        } catch (e) {
+            // ignore if columns don't exist or request fails
+            console.log('fetchAreaCoords error', e);
+        }
+    }
+
 
     return (
         <React.Fragment>
@@ -300,48 +379,38 @@ export default function ModalScreen() {
                         <ThemedInput label={<ThemedText style={styles.label}>No Hp</ThemedText>} value={dataUser.no_hp} onChangeText={(text: string) => {
                             setDataUser({ ...dataUser, no_hp: text })
                         }} placeholder="" />
-                        <ThemedText style={styles.label}>Provinsi</ThemedText>
-                        <CustomSelect
-                            value={provinsi}
-                            placeholder='Pilih Provinsi'
-                            data={provinsis}
-                            onSelect={(item: any) => { setProvinsi(item.value); setProv(item.label) }}
-                            inputStyle={{ button: selectS.button, buttonText: selectS.buttonText, overlay: selectS.overlay, item: selectS.item, itemText: selectS.itemText }}
-                        />
-                        <ThemedText style={styles.label}>Kabupaten</ThemedText>
-                        <CustomSelect
-                            value={kabupaten}
-                            placeholder='Pilih Kabupaten'
-                            data={kabupatens}
-                            onSelect={(item: any) => { setKabupaten(item.value); setKabu(item.label) }}
-                            inputStyle={{ button: selectS.button, buttonText: selectS.buttonText, overlay: selectS.overlay, item: selectS.item, itemText: selectS.itemText }}
-                        />
-                        <ThemedText style={styles.label}>Kecamatan</ThemedText>
-                        <CustomSelect
-                            value={kecamatan}
-                            placeholder='Pilih Kecamatan'
-                            data={kecamatans}
-                            onSelect={(item: any) => { setKecamatan(item.value); setKeca(item.label) }}
-                            inputStyle={{ button: selectS.button, buttonText: selectS.buttonText, overlay: selectS.overlay, item: selectS.item, itemText: selectS.itemText }}
-                        />
-                        <ThemedText style={styles.label}>Desa</ThemedText>
-                        <CustomSelect
-                            value={desa}
-                            placeholder='Pilih Desa'
-                            data={desas}
-                            onSelect={(item: any) => { setDesa(item.value); setDes(item.label) }}
-                            inputStyle={{ button: selectS.button, buttonText: selectS.buttonText, overlay: selectS.overlay, item: selectS.item, itemText: selectS.itemText }}
-                        />
-                        <ThemedText style={styles.label}>Kode Pos</ThemedText>
-                        <CustomSelect
-                            value={kode_pos}
-                            placeholder='Pilih Kode Pos'
-                            data={kodeposs}
-                            onSelect={(item: any) => {
-                                setKode_Pos(item.value);
-                            }}
-                            inputStyle={{ button: selectS.button, buttonText: selectS.buttonText, overlay: selectS.overlay, item: selectS.item, itemText: selectS.itemText }}
-                        />
+                        <ThemedInput label={<ThemedText style={styles.label}>Cari Alamat (desa/kode pos)</ThemedText>} value={searchQuery} onChangeText={(text: string) => {
+                            setSearchQuery(text);
+                            if (searchTimeout.current) clearTimeout(searchTimeout.current);
+                            searchTimeout.current = setTimeout(() => fetchAddressSuggestions(text), 350);
+                        }} placeholder="Ketik nama desa atau kecamatan..." />
+
+                        {searchResults.length > 0 ? (
+                            <View style={{ maxHeight: 160, borderRadius: 8, overflow: 'hidden' }}>
+                                {searchResults.map((it: any, idx: number) => (
+                                    <TouchableOpacity key={idx} onPress={() => handleSelectSuggestion(it)} style={{ padding: 8, borderBottomWidth: 1, borderColor: border, backgroundColor: bgColor }}>
+                                        <ThemedText>{it.label}</ThemedText>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        ) : null}
+                        {[
+                            ['Provinsi', prov],
+                            ['Kabupaten', kabu],
+                            ['Kecamatan', keca],
+                            ['Desa', des],
+                            ['Kode Pos', kode_pos],
+                        ].map(([label, value]) =>
+                            value ? (
+                                <React.Fragment key={label}>
+                                    <ThemedText style={styles.label}>{label}</ThemedText>
+                                    <ThemedInput value={value} editable={false} />
+                                </React.Fragment>
+                            ) : null
+                        )}
+                        {kodeposs.length === 0 && des ? (
+                            <ThemedText style={{ color: '#d9534f', marginBottom: 8 }}>Kode pos tidak ditemukan</ThemedText>
+                        ) : null}
                         <ThemedInput label={<ThemedText style={styles.label}>Alamat Lengkap</ThemedText>} value={dataUser.alamat ?? alamat_pos} onChangeText={(text: string) => { setDataUser({ ...dataUser, alamat: text }) }} placeholder={alamat_pos} style={{ height: 100, textAlignVertical: 'top', }} multiline />
                         {/* nama lengkap, nomor telepon, provinsi, kota, kecamatan, kode pos, nama jalan, gedung, no.rumah, detail lainnya, titik lokasi */}
                         <View
@@ -349,10 +418,62 @@ export default function ModalScreen() {
                                 position: 'relative',
                             }}
                         >
-                            <ThemedInput label={<ThemedText style={styles.label}>Pin Point Alamat</ThemedText>} value={pointAlamat} onChangeText={(text: string) => {
-                                setPointAlamat(text)
-                            }} placeholder="" />
+                            <ThemedInput
+                                label={<ThemedText style={styles.label}>Pin Point Alamat</ThemedText>}
+                                value={pointAlamat}
+                                onChangeText={(text: string) => {
+                                    setPointAlamat(text);
 
+                                    if (!text.trim()) {
+                                        setHasilLokasi([]);
+                                        return;
+                                    }
+
+                                    tampilLokasi(latitude, longitude, text)
+                                        .then((json) => {
+                                            setHasilLokasi(json?.results ?? []);
+                                        });
+                                }}
+                                placeholder="Ketik nama tempat..."
+                            />
+                            {hasilLokasi.length > 0 && (
+                                <View style={styles.suggestionContainer}>
+                                    {hasilLokasi.map((item) => (
+                                        <TouchableOpacity
+                                            key={item.place_id}
+                                            style={styles.suggestionItem}
+                                            onPress={() => {
+                                                const lat = item.geometry?.location?.lat;
+                                                const lng = item.geometry?.location?.lng;
+
+                                                if (lat != null && lng != null) {
+                                                    setLatitude(lat);
+                                                    setLongitude(lng);
+                                                }
+                                                setPointAlamat(
+                                                    `${item.name}, ${item.formatted_address ?? item.vicinity ?? ''}`
+                                                );
+
+                                                setPopup({
+                                                    id: item.place_id,
+                                                    name: item.name,
+                                                    code: item.plus_code?.compound_code,
+                                                });
+
+                                                setHasilLokasi([]);
+                                            }}
+                                        >
+                                            <ThemedText style={styles.suggestionName}>
+                                                {item.name}
+                                            </ThemedText>
+
+                                            <ThemedText style={styles.suggestionAddress}>
+                                                {item.formatted_address ?? item.vicinity}
+                                            </ThemedText>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
                             <MapPicker
                                 initialLocation={{
                                     latitude,
@@ -409,5 +530,31 @@ const styles = StyleSheet.create({
     buttonText: {
         color: ColorLight,
         fontWeight: '600',
+    },
+    suggestionContainer: {
+        marginTop: 4,
+        borderRadius: 10,
+        overflow: 'hidden',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#ddd',
+    },
+
+    suggestionItem: {
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+
+    suggestionName: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+
+    suggestionAddress: {
+        marginTop: 3,
+        fontSize: 13,
+        opacity: 0.6,
     },
 })

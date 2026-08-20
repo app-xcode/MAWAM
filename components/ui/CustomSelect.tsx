@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   TouchableOpacity, Modal, FlatList, StyleSheet, ViewStyle,
-  TextStyle, Dimensions, Keyboard
+  TextStyle, Dimensions, Keyboard, TextInput, View
 } from 'react-native';
 import { ThemedView } from '../themed-view';
 import { ThemedText } from '../themed-text';
@@ -17,6 +17,8 @@ interface CustomSelectProps {
     data: OptionItem[];
     onSelect: (item: OptionItem) => void;
     placeholder?: string;
+    searchable?: boolean;
+    searchPlaceholder?: string;
     inputStyle?: {
         button?: ViewStyle,
         buttonText?: TextStyle
@@ -32,15 +34,24 @@ export const CustomSelect = ({
     data = [],
     onSelect,
     placeholder = "Pilih...",
-    inputStyle
+    inputStyle,
+    searchable = false,
+    searchPlaceholder = 'Cari...'
 }: CustomSelectProps) => {
 
   const [visible, setVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<OptionItem | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filteredData = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return keyword ? data.filter((item) => item.label.toLowerCase().includes(keyword)) : data;
+  }, [data, search]);
 
   const handleSelect = (item: OptionItem) => {
     setSelectedItem(item);
     onSelect(item);
+    setSearch('');
     setVisible(false);
   };
 
@@ -70,9 +81,21 @@ export const CustomSelect = ({
           activeOpacity={1}
           onPress={() => setVisible(false)}
         >
-          <ThemedView style={styles.dropdown}>
+        <ThemedView style={styles.dropdown}>
+            {searchable && (
+              <View style={styles.searchWrap}>
+                <TextInput
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder={searchPlaceholder}
+                  placeholderTextColor="#888"
+                  style={styles.searchInput}
+                  autoFocus
+                />
+              </View>
+            )}
             <FlatList
-              data={data}
+              data={filteredData}
               keyExtractor={(item) => item.value.toString()}
               renderItem={({ item }) => (
                 <ThemedView>
@@ -110,6 +133,17 @@ const styles = StyleSheet.create({
     maxHeight: height - (0.3 * height),
     overflow: 'hidden',
     padding: 8
+  },
+  searchWrap: {
+    paddingBottom: 8,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#999',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: '#111',
   },
   item: {
     padding: 10,
