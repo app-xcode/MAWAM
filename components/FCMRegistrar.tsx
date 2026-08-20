@@ -43,7 +43,7 @@ async function registerWebToken(userId: string) {
     const { getToken } = await import('firebase/messaging');
     const token = await getToken(messaging, { vapidKey: vapidKey || undefined });
     if (token) {
-      console.log('FCM token obtained (web):', token);
+      // console.log('FCM token obtained (web):', token);
       await addToken(userId, token, 'web');
       // console.log('FCM token saved (web):', token);
       return token;
@@ -75,7 +75,7 @@ async function registerAndroidToken(userId: string) {
     const tokenObj: any = await Notifications.getDevicePushTokenAsync();
     const token = tokenObj?.data ?? tokenObj;
     if (token) {
-      console.log('FCM token obtained (android):', token);
+      // console.log('FCM token obtained (android):', token);
       await addToken(userId, token, 'android');
       // console.log('FCM token saved (android):', token);
       return token;

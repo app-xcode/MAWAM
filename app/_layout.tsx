@@ -53,30 +53,6 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    const wakeUpServers = async () => {
-      const urls = [
-        'https://cros-image.vercel.app/',
-        'https://qrcode-image-xcode.vercel.app/',
-      ];
-
-      try {
-        await Promise.all(
-          urls.map(url =>
-            fetch(url)
-              .then(res => console.log(`Waking up: ${url} - Status: ${res.status}`))
-              .catch(err => console.log(`Failed to wake ${url}:`, err))
-          )
-        );
-      } catch (error) {
-        console.error("Gagal membangunkan salah satu server:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    wakeUpServers();
-  }, []);
-
-  useEffect(() => {
     const defaultHandler = ErrorUtils.getGlobalHandler();
 
     ErrorUtils.setGlobalHandler((error, isFatal) => {
