@@ -281,6 +281,10 @@ export default function MayarScreen() {
                                 {rupiah((data?.payment_method === "qris_dinamis" ?  data?.amount_unik : data?.amount) || 0)}
                             </ThemedText>
                         </View>
+                        <View style={styles.rowBorder}>
+                            <ThemedText></ThemedText>
+                            <ThemedText style={styles.infoText}>Nominal + kode unik untuk verifikasi lebih cepat.</ThemedText>
+                        </View>
 
                         <View style={styles.row}>
                             <ThemedText style={styles.label}>

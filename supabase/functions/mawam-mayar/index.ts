@@ -4,9 +4,9 @@ const supabase = createClient(
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const mayarApiKey = Deno.env.get("MAYAR_API_KEY_TEST")!;
-const mayarApiUrl = Deno.env.get("MAYAR_API_URL_TEST") || "https://api.mayar.io/hl/v2";
-const mayarWebhookSecret = Deno.env.get("MAYAR_WEBHOOK_SECRET_TEST")!;
+const mayarApiKey = Deno.env.get("MAYAR_API_KEY")!;
+const mayarApiUrl = Deno.env.get("MAYAR_API_URL") || "https://api.mayar.io/hl/v2";
+const mayarWebhookSecret = Deno.env.get("MAYAR_WEBHOOK_SECRET")!;
 
 async function generateAmountUnik(amount: number) {
     for (let code = 1; code <= 999; code++) {
