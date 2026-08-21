@@ -11,7 +11,8 @@ export async function cekOngkir(origin = '85111', destination = '84111', items =
   }
 
 ]) {
-  const kurirs = ['jne', 'jntcargo', 'jnt', 'sicepat', 'pos'];
+  // const kurirs = ['jne', 'jntcargo', 'jnt', 'sicepat', 'pos'];
+  const kurirs = ['jne', 'jntcargo', 'jnt', 'sicepat'];
   let returns: any = [];
   const ongkir = await cek(kurirs.join(','), origin.toString(), destination.toString(), items);
   if (ongkir && ongkir.length) {
