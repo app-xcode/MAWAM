@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text'
 import { ThemedView } from '@/components/themed-view'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { ImageLoad } from '@/components/ui/Imageload'
 import { addCart, minCart, removeCart } from '@/constants/kelolaCart'
 import { rupiah } from '@/constants/rupiah'
@@ -11,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons'
 // import { useFocusEffect } from '@react-navigation/native'
 import { router, useFocusEffect } from 'expo-router'
 import React, { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, Platform, TouchableOpacity, SectionList, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, TouchableOpacity, SectionList, StyleSheet, View } from 'react-native'
 const ColorDark = Colors['light'].tint;
 const ColorLight = Colors['dark'].tint;
 
@@ -24,6 +25,20 @@ export default function DetailCart() {
   const [subtotal, setSubtotal] = useState<number>(0)
   const [total, setTotal] = useState<number>(0)
   const [totalHemat, setTotalHemat] = useState<number>(0)
+  const [pendingRemove, setPendingRemove] = useState<any | null>(null)
+  const [removing, setRemoving] = useState(false)
+
+  const confirmRemove = async () => {
+    if (!pendingRemove) return
+    setRemoving(true)
+    try {
+      const remove = await removeCart(pendingRemove.cart_id)
+      if (remove) {
+        setData((prev: any[]) => prev.filter((i: any) => i.id !== pendingRemove.id))
+        setPendingRemove(null)
+      }
+    } finally { setRemoving(false) }
+  }
   const { cart, loadCart } = useCart();
 
 
@@ -122,6 +137,7 @@ export default function DetailCart() {
 
   return (
     <React.Fragment>
+      <ConfirmModal visible={Boolean(pendingRemove)} title="Hapus produk?" message="Produk ini akan dihapus dari keranjang." confirmText="Hapus" variant="destructive" loading={removing} onCancel={() => setPendingRemove(null)} onConfirm={confirmRemove} />
       <ThemedView style={{
         justifyContent: 'center',
         paddingVertical: 10
@@ -271,33 +287,7 @@ export default function DetailCart() {
                     </View>
                     <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', height: 65, }}>
                       <TouchableOpacity onPress={async () => {
-                        Platform.OS != 'web'
-                          && Alert.alert(
-                            "Hapus Produk",
-                            "Yakin ingin menghapus produk dari keranjang?",
-                            [
-                              {
-                                text: "Batal",
-                                style: "cancel",
-                              },
-                              {
-                                text: "Hapus",
-                                style: "destructive",
-                                onPress: async () => {
-                                  const remove = await removeCart(item.cart_id);
-                                  remove && setData((prev: any[]) =>
-                                    prev.filter((i: any) => i.id !== item.id)
-                                  );
-                                },
-                              },
-                            ]
-                          );
-                        if (Platform.OS == 'web' && confirm('Yakin ingin menghapus produk dari keranjang?')) {
-                          const remove = await removeCart(item.cart_id);
-                          remove && setData((prev: any[]) =>
-                            prev.filter((i: any) => i.id !== item.id)
-                          );
-                        }
+                        setPendingRemove(item)
                       }}>
                         <ThemedText style={{ opacity: 0.5, padding: 2 }}>
                           {item.jumlah > 1 && <Ionicons name='close' size={16} />}
@@ -307,33 +297,7 @@ export default function DetailCart() {
                         <TouchableOpacity style={{ width: 30, height: 30, justifyContent: 'center', alignItems: 'center', backgroundColor: '#80808025', }}
                           onPress={async () => {
                             if (item.jumlah < 2) {
-                              Platform.OS != 'web'
-                                && Alert.alert(
-                                  "Hapus Produk",
-                                  "Yakin ingin menghapus produk dari keranjang?",
-                                  [
-                                    {
-                                      text: "Batal",
-                                      style: "cancel",
-                                    },
-                                    {
-                                      text: "Hapus",
-                                      style: "destructive",
-                                      onPress: async () => {
-                                        const remove = await removeCart(item.cart_id);
-                                        remove && setData((prev: any[]) =>
-                                          prev.filter((i: any) => i.id !== item.id)
-                                        );
-                                      },
-                                    },
-                                  ]
-                                );
-                              if (Platform.OS == 'web' && confirm('Yakin ingin menghapus produk dari keranjang?')) {
-                                const remove = await removeCart(item.cart_id);
-                                remove && setData((prev: any[]) =>
-                                  prev.filter((i: any) => i.id !== item.id)
-                                );
-                              }
+                              setPendingRemove(item)
                               return
                             }
                             const min = await minCart(item.cart_id, item.jumlah);

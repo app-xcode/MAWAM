@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/themed-text'
 import { ThemedView } from '@/components/themed-view'
 import { BackgroundImage } from '@/components/ui/background-image'
 import { CustomSelect } from '@/components/ui/CustomSelect'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { ImageLoad } from '@/components/ui/Imageload'
 import Alerts from '@/constants/Alerts'
 import { formatRupiah, rupiah } from '@/constants/rupiah'
@@ -48,6 +49,7 @@ export default function ModalScreen() {
     const [active, setActive] = useState(0);
     const carouselRef = useRef<ICarouselInstance>(null);
     const [isAutoPlay, setIsAutoPlay] = useState(true);
+    const [pendingImageDelete, setPendingImageDelete] = useState<string | null>(null);
 
     const selectS = StyleSheet.create({ button: { backgroundColor: bgColor, borderColor: border, padding: 10, marginBottom: 12, height: 40 }, buttonText: { color: textColor }, overlay: { backgroundColor: bgColor + '71', width: 500, maxWidth: '100%', alignSelf: 'center' }, item: { borderColor: border, backgroundColor: textColor }, itemText: { color: bgColor, textAlign: 'center', fontWeight: 'bold' } })
 
@@ -470,6 +472,7 @@ export default function ModalScreen() {
 
     return (
         <React.Fragment>
+            <ConfirmModal visible={pendingImageDelete !== null} title="Hapus gambar?" message="Gambar ini akan dihapus dari produk." confirmText="Hapus" variant="destructive" onCancel={() => setPendingImageDelete(null)} onConfirm={async () => { if (!pendingImageDelete) return; const item = pendingImageDelete; setImageDelete(imageUploads.filter(fil => fil === item)); setImageUploads(imageUploads.filter(fil => fil !== item)); if (newImage) setnewImage(newImage.filter((fil: any) => fil.uri !== item)); setPendingImageDelete(null); }} />
             <Stack.Screen options={{ title: isEdit ? 'Edit Produk' : 'Tambah Produk' }} />
             {submitForm ? <View style={{
                 justifyContent: 'center',
@@ -576,27 +579,7 @@ export default function ModalScreen() {
                                                 top: 40,
                                                 padding: 8,
                                             }}
-                                            onPress={() => {
-                                                if (Platform.OS == 'web' && confirm('Hapus Gambar ini?')) {
-                                                    setImageDelete(imageUploads.filter(fil =>
-                                                        fil == item
-                                                    ))
-                                                    setTimeout(() => {
-                                                        setImageUploads(
-                                                            imageUploads.filter(fil =>
-                                                                fil != item
-                                                            )
-                                                        );
-                                                        if (newImage) {
-                                                            setnewImage(
-                                                                newImage.filter((fil: any) =>
-                                                                    fil.uri != item
-                                                                )
-                                                            )
-                                                        }
-                                                    }, 100);
-                                                }
-                                            }}
+                                            onPress={() => setPendingImageDelete(item)}
                                         >
                                             <Ionicons
                                                 name="trash-outline"

@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import Alerts from '@/constants/Alerts';
 import { rupiah } from '@/constants/rupiah';
 import { Colors } from '@/constants/theme';
@@ -8,7 +9,7 @@ import { useAuth } from '@/utils/auth';
 import { useTheme } from '@/utils/theme';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 const BITESHIP_ENDPOINT = 'https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/biteship';
 
@@ -90,7 +91,9 @@ export default function AturPengirimanSeller() {
         setLoading(false);
     }
 
-    async function submitManual() {
+    const [overwriteOpen, setOverwriteOpen] = useState(false);
+
+    async function submitManual(skipOverwrite = false) {
         if (!manualCourier || !manualResi) {
             Alerts('Pilih kurir dan masukkan nomor resi.');
             return;
@@ -101,23 +104,10 @@ export default function AturPengirimanSeller() {
         try {
             // Cek apakah sudah ada pengiriman untuk order
             const { data: existing } = await supabase.from('mawam_pengiriman').select('*').eq('order_id', orderId);
-            if (existing && existing.length > 0) {
-                const ok = await new Promise<boolean>((res) => {
-                    Alerts('Pengiriman sudah ada untuk pesanan ini. Buat baru dan timpa?',
-                        'info',
-                        'bottom',
-                        {
-                            title: 'Peringatan',
-                            cancelText: 'Batal',
-                            onCancel: () => { res(false) },
-                            confirmText: 'Lanjut',
-                            onConfirm: () => { res(true) },
-                        });
-                });
-                if (!ok) {
+            if (existing && existing.length > 0 && !skipOverwrite) {
+                setOverwriteOpen(true);
                     setSubmitting(false);
                     return;
-                }
             }
 
             const payload = {
@@ -150,12 +140,12 @@ export default function AturPengirimanSeller() {
                 console.log('Manual shipping notification error', notificationError);
             }
 
-            Alert.alert('Berhasil', 'Resi manual tersimpan.');
+            Alerts('Resi manual tersimpan.', 'success');
             void fetchOrder();
             router.back();
         } catch (e: any) {
             console.log(e);
-            Alert.alert('Gagal', e.message ?? 'Gagal menyimpan resi.');
+            Alerts(e.message ?? 'Gagal menyimpan resi.', 'error');
         } finally {
             setSubmitting(false);
         }
@@ -437,6 +427,7 @@ export default function AturPengirimanSeller() {
     return (
         <>
             <Stack.Screen options={{ title: 'Atur Pengiriman' }} />
+            <ConfirmModal visible={overwriteOpen} title="Timpa pengiriman?" message="Data pengiriman lama akan diganti dengan data baru." confirmText="Lanjut" loading={submitting} onCancel={() => setOverwriteOpen(false)} onConfirm={async () => { setOverwriteOpen(false); await submitManual(true); }} />
             <ScrollView contentContainerStyle={styles.container}>
                 <ThemedView style={styles.card}>
                     <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Informasi Pesanan</ThemedText>
@@ -539,7 +530,7 @@ export default function AturPengirimanSeller() {
                         <TextInput value={manualCourier} onChangeText={setManualCourier} style={styles.input} placeholder="JNT / JNE / SICEPAT" />
                         <ThemedText style={styles.label}>Nomor Resi</ThemedText>
                         <TextInput value={manualResi} onChangeText={setManualResi} style={styles.input} placeholder="1234567890" />
-                        <TouchableOpacity style={styles.button} onPress={submitManual} disabled={submitting}>
+                        <TouchableOpacity style={styles.button} onPress={() => void submitManual()} disabled={submitting}>
                             <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : 'Simpan Resi'}</ThemedText>
                         </TouchableOpacity>
                     </ThemedView>

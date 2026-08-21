@@ -20,7 +20,6 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { CartProvider } from '@/utils/CartContext';
 import { LikeProvider } from '@/utils/LikeContext';
-import CustomConfirm from '@/components/ui/CustomConfirm';
 import FCMRegistrar from '@/components/FCMRegistrar';
 
 export const unstable_settings = {
@@ -34,12 +33,6 @@ export default function RootLayout() {
   const [isDark, setIsDark] = useState(darkSy);
   const toggleTheme = () => setIsDark(prev => !prev);
   const [loading, setLoading] = useState(true);
-  const toastConfig = {
-    custom_confirm: (props: any) => (
-      <CustomConfirm {...props} />
-    ),
-  };
-
   useEffect(() => {
     setIsDark(colorScheme != 'dark')
   }, [colorScheme]);
@@ -96,7 +89,7 @@ export default function RootLayout() {
                     </LikeProvider>
                   </CartProvider>
                 </ActionSheetProvider>
-                <Toast config={toastConfig} />
+                <Toast />
                 <StatusBar style={isDark ? 'light' : 'dark'} />
               </ThemeProvider>
             </ThemeContext.Provider>

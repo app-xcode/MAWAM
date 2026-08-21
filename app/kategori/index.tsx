@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react'
 import {
   FlatList,
   TouchableOpacity,
-  Alert,
   StyleSheet,
-  Platform,
   View
 } from 'react-native'
 import { supabase } from '@/lib/supabase'
@@ -16,12 +14,14 @@ import { ThemedText } from '@/components/themed-text'
 import { Colors } from '@/constants/theme'
 import { router, useTheme } from 'expo-router'
 import Alerts from '@/constants/Alerts'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function KategoriPage() {
   const { user } = useAuth() // kalau belum punya, bisa dihapus
   const [kategori, setKategori] = useState<any[]>([])
   const [nama, setNama] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const isDark = useTheme();
   const colorScheme = isDark ? 'dark' : 'light';
   const ColorBgPri = Colors[colorScheme].inputBg;
@@ -114,17 +114,7 @@ export default function KategoriPage() {
 
   // 🔹 Delete
   function handleDelete(id: string) {
-    Platform.OS != 'web' && Alert.alert('Hapus?', 'Yakin ingin menghapus?', [
-      { text: 'Batal' },
-      {
-        text: 'Hapus',
-        onPress: () => {
-          runHapus(id)
-        },
-      }
-    ]);
-
-    Platform.OS == 'web' && confirm('Yakin ingin menghapus?') && runHapus(id)
+    setPendingDeleteId(id)
   }
 
   const styles = StyleSheet.create({
@@ -139,7 +129,9 @@ export default function KategoriPage() {
     }
   })
 
-  return (
+    return (
+      <>
+      <ConfirmModal visible={Boolean(pendingDeleteId)} title="Hapus kategori?" message="Kategori yang dihapus tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" onCancel={() => setPendingDeleteId(null)} onConfirm={async () => { if (pendingDeleteId) { await runHapus(pendingDeleteId); setPendingDeleteId(null); } }} />
     <View style={{ flex: 1, padding: 16 }}>
       <ThemedText style={{ fontSize: 20, fontWeight: 'bold' }}>
         {user ? 'Kelola Kategori' : 'Kategori'}
@@ -237,5 +229,6 @@ export default function KategoriPage() {
         )}
       />
     </View>
+      </>
   )
 }

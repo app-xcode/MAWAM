@@ -1,6 +1,7 @@
 import { hapusProduk } from "@/app/prod/dataProduk"
 import { ThemedText } from "@/components/themed-text"
 import { ThemedView } from "@/components/themed-view"
+import ConfirmModal from "@/components/ui/ConfirmModal"
 import { BackgroundImage } from "@/components/ui/background-image"
 import { ImageLoad } from "@/components/ui/Imageload"
 import Alerts from "@/constants/Alerts"
@@ -20,7 +21,7 @@ import { encode as btoa } from "base-64"
 import { Link, router, Stack } from "expo-router"
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useState } from "react"
-import { Alert, Dimensions, Platform, Share, StyleSheet, TouchableOpacity, View } from "react-native"
+import { Dimensions, Platform, Share, StyleSheet, TouchableOpacity, View } from "react-native"
 import Carousel from 'react-native-reanimated-carousel'
 const imageDefault = 'https://cros-image.vercel.app/?quest=https://mawam.expo.app/kosong.webp';
 
@@ -43,6 +44,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewCount, setReviewCount] = useState(0);
     const [averageRating, setAverageRating] = useState(0);
+    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
     const { loadCart } = useCart();
     const { cart } = useCart();
 
@@ -131,35 +133,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
     };
 
     const handleHapus = (id: number) => {
-        if (Platform.OS === 'web') {
-            if (!confirm('Yakin mau hapus data ini?')) {
-                return;
-            }
-            hapusProduk(id, () => {
-                router.dismissAll();
-                router.navigate('/produk?aksi=delete&id=' + id);
-            });
-            return;
-        }
-        Alert.alert(
-            "Konfirmasi",
-            "Yakin mau hapus data ini?",
-            [
-                {
-                    text: "Batal",
-                    style: "cancel"
-                },
-                {
-                    text: "Hapus",
-                    onPress: () => {
-                        hapusProduk(id, () => {
-                            router.dismissAll();
-                            router.navigate('/produk?aksi=delete&id=' + id);
-                        });
-                    }
-                }
-            ]
-        );
+        setPendingDeleteId(id);
     }
     const handleCart = async (produk: any) => {
         try {
@@ -198,6 +172,8 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
     };
 
     return (
+        <>
+        <ConfirmModal visible={pendingDeleteId !== null} title="Hapus produk?" message="Produk yang dihapus tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" onCancel={() => setPendingDeleteId(null)} onConfirm={async () => { if (pendingDeleteId === null) return; hapusProduk(pendingDeleteId, () => { setPendingDeleteId(null); router.dismissAll(); router.navigate('/produk?aksi=delete&id=' + pendingDeleteId); }); }} />
         <React.Fragment>
             <Stack.Screen options={{
                 title: 'Detail Produk', headerRight: () => (
@@ -594,9 +570,9 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
             </ThemedView>
             <ThemedView style={{ marginBottom: 80 }}></ThemedView>
         </React.Fragment>
+        </>
     )
 }
-
 
 const styles = StyleSheet.create({
 

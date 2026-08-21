@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { TouchableOpacity, FlatList, StyleSheet, View, Alert } from 'react-native';
+import { TouchableOpacity, FlatList, StyleSheet, View } from 'react-native';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { markAsRead, markAllAsRead, fetchNotifications, getUnreadNotificationCount, deleteNotification, deleteReadNotifications } from '@/services/notification/notificationService';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -11,6 +12,9 @@ export default function NotifikasiPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<any | null>(null);
+  const [deleteReadOpen, setDeleteReadOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -164,56 +168,40 @@ export default function NotifikasiPage() {
     await refreshUnreadCount(user.id);
   };
 
-  const handleDeleteNotification = (item: any) => {
-    Alert.alert(
-      'Hapus notifikasi',
-      'Yakin ingin menghapus notifikasi ini?',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus',
-          style: 'destructive',
-          onPress: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+  const handleDeleteNotification = (item: any) => setPendingDelete(item);
 
-            const ok = await deleteNotification(item.id, user.id);
-            if (!ok) return;
-
-            setNotifications((prev) => prev.filter((n) => n.id !== item.id));
-            await refreshUnreadCount(user.id);
-          },
-        },
-      ]
-    );
+  const confirmDeleteNotification = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      if (await deleteNotification(pendingDelete.id, user.id)) {
+        setNotifications((prev) => prev.filter((n) => n.id !== pendingDelete.id));
+        setPendingDelete(null);
+        await refreshUnreadCount(user.id);
+      }
+    } finally { setDeleting(false); }
   };
 
-  const handleDeleteRead = () => {
-    Alert.alert(
-      'Hapus notifikasi dibaca',
-      'Semua notifikasi yang sudah dibaca akan dihapus.',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus',
-          style: 'destructive',
-          onPress: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            const ok = await deleteReadNotifications(user.id);
-            if (!ok) return;
-
-            setNotifications((prev) => prev.filter((n) => !n.is_read));
-            await refreshUnreadCount(user.id);
-          },
-        },
-      ]
-    );
+  const handleDeleteRead = () => setDeleteReadOpen(true);
+  const confirmDeleteRead = async () => {
+    setDeleting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      if (await deleteReadNotifications(user.id)) {
+        setNotifications((prev) => prev.filter((n) => !n.is_read));
+        setDeleteReadOpen(false);
+        await refreshUnreadCount(user.id);
+      }
+    } finally { setDeleting(false); }
   };
 
   return (
     <ThemedView style={{ padding: 12 }}>
+      <ConfirmModal visible={Boolean(pendingDelete)} title="Hapus notifikasi?" message="Notifikasi ini akan dihapus dan tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" loading={deleting} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteNotification} />
+      <ConfirmModal visible={deleteReadOpen} title="Hapus notifikasi dibaca?" message="Semua notifikasi yang sudah dibaca akan dihapus." confirmText="Hapus" variant="destructive" loading={deleting} onCancel={() => setDeleteReadOpen(false)} onConfirm={confirmDeleteRead} />
       <ThemedText type="title">Notifikasi</ThemedText>
       <ThemedText>Belum dibaca: {unreadCount}</ThemedText>
       <View style={styles.actionRow}>

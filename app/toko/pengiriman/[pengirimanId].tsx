@@ -2,12 +2,13 @@ import MapPicker from "@/components/ui/MapPicker";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors } from "@/constants/theme";
+import Alerts from "@/constants/Alerts";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/utils/auth";
 import { useTheme } from "@/utils/theme";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 
 const STATUS_PERJALANAN = [
   "Paket diterima",
@@ -78,7 +79,7 @@ export default function UpdateLokasiPengiriman() {
       supabase.from("mawam_pengiriman_lokasi").select("id, kota, drop_point, status, catatan, latitude, longitude, created_at").eq("pengiriman_id", pengirimanId).order("created_at", { ascending: false }),
     ]);
     if (deliveryError || !delivery || delivery.petugas_id !== user.id) {
-      Alert.alert("Akses ditolak", "Pengiriman ini tidak ditugaskan kepada Anda.");
+      Alerts("Pengiriman ini tidak ditugaskan kepada Anda.", "error");
       router.back();
       return;
     }
@@ -97,7 +98,7 @@ export default function UpdateLokasiPengiriman() {
 
   async function save() {
     if (!kota.trim() || !dropPoint.trim() || !status) {
-      Alert.alert("Data belum lengkap", "Kota, drop point, dan status wajib diisi.");
+      Alerts("Kota, drop point, dan status wajib diisi.", "error");
       return;
     }
     setSaving(true);
@@ -112,10 +113,10 @@ export default function UpdateLokasiPengiriman() {
     });
     setSaving(false);
     if (error) {
-      Alert.alert("Gagal menyimpan", error.message);
+      Alerts(error.message, "error");
       return;
     }
-    Alert.alert("Lokasi diperbarui", "Pembaruan telah ditambahkan ke riwayat perjalanan paket.");
+    Alerts("Pembaruan lokasi telah ditambahkan ke riwayat perjalanan paket.", "success");
     setKota(""); setDropPoint(""); setCatatan("");
     await load();
   }
