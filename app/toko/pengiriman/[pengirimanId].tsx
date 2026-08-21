@@ -20,6 +20,18 @@ const STATUS_PERJALANAN = [
   "Siap diambil",
   "Selesai",
 ];
+const CATATAN_STATUS: Record<string, string> = {
+  "Paket diterima": "Paket telah diterima.",
+  "Tiba di drop point": "Paket telah tiba di drop point.",
+  "Dalam perjalanan ke kota berikutnya":
+    "Paket sedang dalam perjalanan ke kota berikutnya.",
+  "Tiba di kota berikutnya":
+    "Paket telah tiba di kota berikutnya.",
+  "Sampai di drop point tujuan":
+    "Paket telah sampai di drop point tujuan.",
+  "Siap diambil": "Paket sudah siap untuk diambil.",
+  "Selesai": "Pengiriman telah selesai.",
+};
 const KUPANG = { latitude: -10.1772, longitude: 123.6070 };
 
 export default function UpdateLokasiPengiriman() {
@@ -33,6 +45,7 @@ export default function UpdateLokasiPengiriman() {
   const [saving, setSaving] = useState(false);
   const [coordinates, setCoordinates] = useState(KUPANG);
   const [kota, setKota] = useState("");
+  const [namaTempat, setNamaTempat] = useState("");
   const [dropPoint, setDropPoint] = useState("");
   const [status, setStatus] = useState(STATUS_PERJALANAN[1]);
   const [catatan, setCatatan] = useState("");
@@ -41,35 +54,91 @@ export default function UpdateLokasiPengiriman() {
 
 
   useEffect(() => {
+
+    setCatatan(CATATAN_STATUS[status] ?? "")
+  }, [status]);
+  useEffect(() => {
     tampilLokasi(coordinates.latitude, coordinates.longitude)
   }, [coordinates]);
 
   const tampilLokasi = async (lat: number, lng: number) => {
-    const res = await fetch('https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/proxy?url=' + (encodeURIComponent(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat}%2C${lng}&radius=30&key=AIzaSyB5Zf-tTLdsCoDhVJiv4klSDqpw4cX9U0Y`)), {
-      method: "GET"
-    });
+    const res = await fetch(
+      "https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/proxy?url=" +
+      encodeURIComponent(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=AIzaSyB5Zf-tTLdsCoDhVJiv4klSDqpw4cX9U0Y`
+      ),
+      {
+        method: "GET",
+      }
+    );
 
     const json = await res.json();
-    if (json
-      && json.status === "OK"
-      && json?.results
-    ) {
-      const tempat = json?.results.filter((r: any) => {
-        return r.business_status == "OPERATIONAL" && r.name
-      });
 
+    if (json?.status !== "OK" || !json?.results?.length) return;
 
-      const lokasi = tempat[0]?.geometry?.location
-      // setLatitude(lokasi.lat);
-      // setLongitude(lokasi.lng);
-      setPopup({
-        id: tempat[0]?.place_id,
-        name: tempat[0]?.name,
-        code: tempat[0]?.plus_code?.compound_code,
-      });
-      setPointAlamat((tempat[0]?.name ? tempat[0]?.name + ', ' : '') + (tempat[0]?.plus_code?.compound_code ?? ''))
+    const result = json.results[0];
+
+    let tempat = "";
+    let kotaDitemukan = "";
+
+    for (const component of result.address_components ?? []) {
+      const types = component.types ?? [];
+
+      if (
+        !tempat &&
+        (types.includes("premise") ||
+          types.includes("point_of_interest") ||
+          types.includes("establishment"))
+      ) {
+        tempat = component.long_name;
+      }
+
+      if (
+        types.includes("locality") ||
+        types.includes("administrative_area_level_2")
+      ) {
+        kotaDitemukan = component.long_name;
+        break;
+      }
     }
 
+    if (!tempat) {
+      const addressParts = result.formatted_address
+        ?.split(",")
+        .map((item: string) => item.trim())
+        .filter(Boolean);
+
+      // Hindari Plus Code seperti RJF6+292
+      const firstPart = addressParts?.[0] ?? "";
+
+      if (firstPart.includes("+")) {
+        tempat = addressParts?.[1] ?? "";
+      } else {
+        tempat = firstPart;
+      }
+    }
+
+    setNamaTempat(tempat);
+
+    if (tempat) {
+      setDropPoint(
+        [tempat, kotaDitemukan].filter(Boolean).join(", ")
+      );
+    }
+
+    if (kotaDitemukan) {
+      setKota(kotaDitemukan);
+    }
+
+    setPointAlamat(
+      [tempat, kotaDitemukan].filter(Boolean).join(", ")
+    );
+
+    setPopup({
+      id: result.place_id,
+      name: tempat,
+      code: result.formatted_address,
+    });
   };
 
   const load = useCallback(async () => {
@@ -151,11 +220,26 @@ export default function UpdateLokasiPengiriman() {
         <ThemedText style={styles.hint}>Ketuk atau geser pin untuk menentukan drop point. Pin ini tidak melacak kurir secara realtime.</ThemedText>
 
         <ThemedText style={styles.label}>Kota</ThemedText>
-        <ThemedInput value={kota} onChangeText={setKota} style={styles.input} placeholder="SoE" placeholderTextColor="#888" />
+        <ThemedInput
+          value={kota}
+          onChangeText={setKota}
+          style={styles.input}
+          placeholder="SoE"
+          placeholderTextColor="#888"
+        />
+
         <ThemedText style={styles.label}>Drop point</ThemedText>
-        <ThemedInput value={dropPoint} onChangeText={setDropPoint} style={styles.input} placeholder="Drop Point SoE" placeholderTextColor="#888" />
+        <ThemedInput
+          value={dropPoint}
+          onChangeText={setDropPoint}
+          style={styles.input}
+          placeholder="Drop Point SoE"
+          placeholderTextColor="#888"
+        />
         <ThemedText style={styles.label}>Status perjalanan</ThemedText>
-        <View style={styles.statuses}>{STATUS_PERJALANAN.map((item) => <TouchableOpacity key={item} onPress={() => setStatus(item)} style={[styles.statusOption, status === item && styles.statusSelected]}><ThemedText style={status === item ? styles.statusSelectedText : undefined}>{item}</ThemedText></TouchableOpacity>)}</View>
+        <View style={styles.statuses}>{STATUS_PERJALANAN.map((item) => <TouchableOpacity key={item} onPress={() => {
+          setStatus(item);
+        }} style={[styles.statusOption, status === item && styles.statusSelected]}><ThemedText style={status === item ? styles.statusSelectedText : undefined}>{item}</ThemedText></TouchableOpacity>)}</View>
         <ThemedText style={styles.label}>Catatan</ThemedText>
         <ThemedInput value={catatan} onChangeText={setCatatan} style={[styles.input, styles.note]} multiline placeholder="Paket sudah diterima di drop point" placeholderTextColor="#888" />
         <TouchableOpacity style={styles.button} onPress={() => void save()} disabled={saving}><ThemedText style={styles.buttonText}>{saving ? "Menyimpan..." : "UPDATE LOKASI"}</ThemedText></TouchableOpacity>
@@ -168,7 +252,7 @@ const styles = StyleSheet.create({
   container: { padding: 12, gap: 12 }, center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   card: { borderRadius: 10, padding: 12 }, title: { fontSize: 16, fontWeight: "700" }, muted: { opacity: .7, marginTop: 4 },
   label: { fontWeight: "700", marginTop: 14, marginBottom: 6 }, hint: { opacity: .65, fontSize: 12, marginTop: 6 },
-  map: { height: 250, overflow: "hidden", borderRadius: 10 }, input: { borderWidth: 1, borderColor: "#8888", borderRadius: 8, padding: 10,}, note: { minHeight: 88, textAlignVertical: "top" },
+  map: { height: 250, overflow: "hidden", borderRadius: 10 }, input: { borderWidth: 1, borderColor: "#8888", borderRadius: 8, padding: 10, }, note: { minHeight: 88, textAlignVertical: "top" },
   statuses: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, statusOption: { borderWidth: 1, borderColor: "#8888", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 7 }, statusSelected: { backgroundColor: "#ff4a1c", borderColor: "#ff4a1c" }, statusSelectedText: { color: "#fff", fontWeight: "700" },
   button: { marginTop: 18, backgroundColor: "#ff4a1c", padding: 13, borderRadius: 9, alignItems: "center" }, buttonText: { color: "#fff", fontWeight: "800" },
 });
