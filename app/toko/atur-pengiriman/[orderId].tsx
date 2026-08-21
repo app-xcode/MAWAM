@@ -10,10 +10,21 @@ import { notifyOrderShippedToBuyer } from '@/services/notification/notificationT
 import { useAuth } from '@/utils/auth';
 import { useTheme } from '@/utils/theme';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 const BITESHIP_ENDPOINT = 'https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/biteship';
+
+const COURIER_OPTIONS = [
+    { code: 'jne', name: 'JNE' },
+    { code: 'jnt', name: 'J&T' },
+    { code: 'sicepat', name: 'SiCepat' },
+    // { code: 'anteraja', name: 'AnterAja' },
+    // { code: 'pos', name: 'POS Indonesia' },
+    // { code: 'tiki', name: 'TIKI' },
+    // { code: 'lion', name: 'Lion Parcel' },
+    // { code: 'sap', name: 'SAP Express' },
+];
 
 function getBiteshipTrackingNumber(data: any) {
     return data?.courier?.waybill_id
@@ -31,6 +42,18 @@ function getBiteshipOrderId(data: any) {
     return data?.id ?? data?.order_id ?? data?.data?.id ?? null;
 }
 
+function toNumber(value: any) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function formatWeight(weight: number) {
+    if (!Number.isFinite(weight)) {
+        return '-';
+    }
+    return `${weight.toLocaleString('id-ID')} g`;
+}
+
 export default function AturPengirimanSeller() {
     const { orderId } = useLocalSearchParams<{ orderId: string }>();
     const { user } = useAuth();
@@ -42,16 +65,17 @@ export default function AturPengirimanSeller() {
     const [loading, setLoading] = useState(true);
     const [mode, setMode] = useState<'idle' | 'biteship' | 'manual'>('idle');
 
-    // Biteship submode: use buyer choice or manual override
     const [useBuyerChoice, setUseBuyerChoice] = useState(true);
 
-    // Biteship form (used only when overriding)
     const [courierCode, setCourierCode] = useState('');
     const [service, setService] = useState('');
-    const [weight, setWeight] = useState('1000');
+    const [weight, setWeight] = useState<string>('0');
 
-    // Manual form (manual resi)
-    const [manualCourier, setManualCourier] = useState('');
+    const [selectedCourierCode, setSelectedCourierCode] = useState('');
+    const [selectedCourierName, setSelectedCourierName] = useState('');
+
+    const [manualCourierCode, setManualCourierCode] = useState('');
+    const [manualCourierName, setManualCourierName] = useState('');
     const [manualResi, setManualResi] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -93,10 +117,24 @@ export default function AturPengirimanSeller() {
         setLoading(false);
     }
 
+    useEffect(() => {
+        const items = order?.items ?? [];
+        const total = items.reduce((sum: number, item: any) => {
+            const qty = toNumber(item.qty);
+            const berat = item.produk?.satuan == 'kg' ? item.produk?.berat_per_unit * 1000 : item.produk?.berat_per_unit;
+            const beratPerUnit = toNumber(berat);
+            return sum + (qty * beratPerUnit);
+        }, 0);
+
+        setWeight(String(total));
+    }, [order]);
+
+    const totalWeight = useMemo(() => toNumber(weight), [weight]);
+
     const [overwriteOpen, setOverwriteOpen] = useState(false);
 
     async function submitManual(skipOverwrite = false) {
-        if (!manualCourier || !manualResi) {
+        if (!manualCourierCode || !manualCourierName || !manualResi) {
             Alerts('Pilih kurir dan masukkan nomor resi.');
             return;
         }
@@ -104,19 +142,18 @@ export default function AturPengirimanSeller() {
         setSubmitting(true);
 
         try {
-            // Cek apakah sudah ada pengiriman untuk order
             const { data: existing } = await supabase.from('mawam_pengiriman').select('*').eq('order_id', orderId);
             if (existing && existing.length > 0 && !skipOverwrite) {
                 setOverwriteOpen(true);
-                    setSubmitting(false);
-                    return;
+                setSubmitting(false);
+                return;
             }
 
             const payload = {
                 order_id: orderId,
                 provider: 'manual',
-                courier_code: manualCourier.toLowerCase(),
-                courier_name: manualCourier,
+                courier_code: manualCourierCode,
+                courier_name: manualCourierName,
                 tracking_number: manualResi,
                 status: 'shipped',
             };
@@ -129,7 +166,6 @@ export default function AturPengirimanSeller() {
                 if (error) throw error;
             }
 
-            // update order status ke shipped (manual resi selalu dianggap sebagai dikirim)
             const { error: err2 } = await supabase.from('mawam_orders').update({ status: 'shipped' }).eq('id', orderId);
             if (err2) throw err2;
 
@@ -224,6 +260,7 @@ export default function AturPengirimanSeller() {
                     biteship_order_id: biteshipOrderId,
                     tracking_number: trackingNumber,
                     status: trackingNumber ? 'shipped' : 'diproses',
+                    weight: totalWeight,
                 })
                 .eq('id', shipping.id);
             if (shippingError) throw shippingError;
@@ -262,10 +299,9 @@ export default function AturPengirimanSeller() {
     }
 
     async function submitBiteship() {
-        // choose data source
-        let finalCourier = courierCode;
+        let finalCourierCode = courierCode;
+        let finalCourierName = selectedCourierName || courierCode;
         let finalService = service;
-        let finalWeight = Number(weight) || undefined;
 
         const shipping = order?.pengiriman?.[0] ?? null;
 
@@ -285,27 +321,26 @@ export default function AturPengirimanSeller() {
                 return;
             }
 
-            // require minimal fields to use buyer choice
             if (!shipping.courier_code || !shipping.service || (shipping.shipping_cost == null && shipping.shipping_cost !== 0)) {
                 Alerts('Pilihan pengiriman pembeli tidak lengkap. Silakan atur manual.', 'error');
                 return;
             }
 
-            finalCourier = shipping.courier_code ?? shipping.courier_name ?? finalCourier;
+            finalCourierCode = shipping.courier_code ?? finalCourierCode;
+            finalCourierName = shipping.courier_name ?? shipping.courier_code ?? finalCourierName;
             finalService = shipping.service ?? finalService;
-            finalWeight = shipping.weight ? Number(shipping.weight) : finalWeight;
         } else {
-            if (!finalCourier) {
+            if (!finalCourierCode || !finalCourierName) {
                 Alerts('Pilih kurir terlebih dahulu.');
                 return;
             }
         }
+
         if (!orderId) return;
         setSubmitting(true);
 
         try {
             const seller = order?.seller;
-            const shipping = order?.pengiriman?.[0];
             const items = order?.items ?? [];
 
             if (!seller || !shipping) {
@@ -313,10 +348,8 @@ export default function AturPengirimanSeller() {
                 return;
             }
 
-            const totalWeight = Number(shipping.weight ?? 0);
-
             if (totalWeight <= 0) {
-                Alerts('Berat pengiriman belum tersedia.', 'error');
+                Alerts('Berat pengiriman belum tersedia dari database.', 'error');
                 return;
             }
 
@@ -339,14 +372,13 @@ export default function AturPengirimanSeller() {
                 destination_address: shipping.alamat_penerima,
                 destination_postal_code: shipping.destination,
 
-                courier_company: finalCourier,
+                courier_company: finalCourierCode,
                 courier_type: finalService || shipping.type,
 
                 delivery_type: 'now',
 
                 items: items.map((item: any) => ({
                     name: item.produk?.nama_produk,
-
                     description:
                         item.produk?.deskripsi?.length
                             ? item.produk.deskripsi
@@ -382,14 +414,14 @@ export default function AturPengirimanSeller() {
             const payload: any = {
                 order_id: orderId,
                 provider: 'biteship',
-                courier_code: finalCourier,
-                courier_name: finalCourier,
+                courier_code: finalCourierCode,
+                courier_name: finalCourierName,
                 service: finalService || null,
                 tracking_number: null,
                 biteship_draft_id: biteshipDraftId,
                 biteship_order_id: null,
                 status: 'diproses',
-                weight: finalWeight,
+                weight: totalWeight,
             };
 
             const { data: existingShipping } = await supabase.from('mawam_pengiriman').select('*').eq('order_id', orderId);
@@ -411,6 +443,9 @@ export default function AturPengirimanSeller() {
         }
     }
 
+    const selectedManualCourier = COURIER_OPTIONS.find(item => item.code === manualCourierCode) ?? null;
+    const selectedBiteshipCourier = COURIER_OPTIONS.find(item => item.code === courierCode) ?? null;
+
     if (loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -419,6 +454,7 @@ export default function AturPengirimanSeller() {
             </View>
         );
     }
+
     const shipping = order?.pengiriman?.[0] ?? null;
     const biteshipButtonLabel = shipping?.biteship_order_id
         ? 'Pengiriman Sudah Dikonfirmasi'
@@ -429,25 +465,51 @@ export default function AturPengirimanSeller() {
     return (
         <>
             <Stack.Screen options={{ title: 'Atur Pengiriman' }} />
-            <ConfirmModal visible={overwriteOpen} title="Timpa pengiriman?" message="Data pengiriman lama akan diganti dengan data baru." confirmText="Lanjut" loading={submitting} onCancel={() => setOverwriteOpen(false)} onConfirm={async () => { setOverwriteOpen(false); await submitManual(true); }} />
+            <ConfirmModal
+                visible={overwriteOpen}
+                title="Timpa pengiriman?"
+                message="Data pengiriman lama akan diganti dengan data baru."
+                confirmText="Lanjut"
+                loading={submitting}
+                onCancel={() => setOverwriteOpen(false)}
+                onConfirm={async () => {
+                    setOverwriteOpen(false);
+                    await submitManual(true);
+                }}
+            />
             <ScrollView contentContainerStyle={styles.container}>
                 <ThemedView style={styles.card}>
                     <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Informasi Pesanan</ThemedText>
                     <ThemedText style={{ opacity: 0.8 }}>No. Pesanan: {order?.invoice}</ThemedText>
                     {shipping ? (
-                        <ThemedText style={{ opacity: 0.8 }}>Pengiriman sudah ada: {shipping.courier_name} • {shipping.tracking_number ?? shipping.tracking}</ThemedText>
+                        <ThemedText style={{ opacity: 0.8 }}>
+                            Pengiriman sudah ada: {shipping.courier_name} • {shipping.tracking_number ?? shipping.tracking}
+                        </ThemedText>
                     ) : (
                         <ThemedText style={{ opacity: 0.7 }}>Belum ada data pengiriman untuk pesanan ini.</ThemedText>
                     )}
+                    <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: '#cccccc1a' }}>
+                        <ThemedText style={{ fontWeight: '700' }}>Berat total dari database</ThemedText>
+                        <ThemedText style={{ opacity: 0.8, marginTop: 4 }}>{formatWeight(totalWeight)}</ThemedText>
+                    </View>
                 </ThemedView>
 
                 <ThemedView style={styles.card}>
                     <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Pilih Metode</ThemedText>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity style={[styles.option, mode === 'biteship' ? { borderColor: '#ff491c' } : undefined]} onPress={() => { setMode('biteship'); setUseBuyerChoice(true); }}>
+                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                        <TouchableOpacity
+                            style={[styles.option, mode === 'biteship' ? { borderColor: '#ff491c' } : undefined]}
+                            onPress={() => {
+                                setMode('biteship');
+                                setUseBuyerChoice(true);
+                            }}
+                        >
                             <ThemedText>Buat via Biteship</ThemedText>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.option, mode === 'manual' ? { borderColor: '#ff491c' } : undefined]} onPress={() => setMode('manual')}>
+                        <TouchableOpacity
+                            style={[styles.option, mode === 'manual' ? { borderColor: '#ff491c' } : undefined]}
+                            onPress={() => setMode('manual')}
+                        >
                             <ThemedText>Input Resi Manual</ThemedText>
                         </TouchableOpacity>
                     </View>
@@ -456,7 +518,7 @@ export default function AturPengirimanSeller() {
                 {mode === 'biteship' && (
                     <ThemedView style={styles.card}>
                         <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Buat Pengiriman (Biteship)</ThemedText>
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                             <TouchableOpacity style={[styles.option, useBuyerChoice ? { borderColor: '#ff491c' } : undefined]} onPress={() => setUseBuyerChoice(true)}>
                                 <ThemedText>Gunakan pilihan pembeli</ThemedText>
                             </TouchableOpacity>
@@ -501,22 +563,50 @@ export default function AturPengirimanSeller() {
                                             <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : biteshipButtonLabel}</ThemedText>
                                         </TouchableOpacity>
                                         {Boolean(shipping?.biteship_order_id) && (
-                                            <TouchableOpacity style={[styles.button, { backgroundColor: '#ff4a1c', marginTop:10 }]} onPress={() => router.push({ pathname: '/toko/pengiriman/[pengirimanId]', params: { pengirimanId: String(shipping.id) } })}>
+                                            <TouchableOpacity
+                                                style={[styles.button, { backgroundColor: '#ff4a1c', marginTop: 10 }]}
+                                                onPress={() => router.push({ pathname: '/toko/pengiriman/[pengirimanId]', params: { pengirimanId: String(shipping.id) } })}
+                                            >
                                                 <ThemedText style={styles.buttonText}>Update Perjalanan Paket</ThemedText>
                                             </TouchableOpacity>
                                         )}
-
                                     </View>
                                 );
                             })()
                         ) : (
                             <View style={{ marginTop: 12 }}>
-                                <ThemedText style={styles.label}>Kode kurir</ThemedText>
-                                <ThemedInput value={courierCode} onChangeText={setCourierCode} style={styles.input} placeholder="jne, jnt, sicepat" />
+                                <ThemedText style={styles.label}>Kurir</ThemedText>
+                                <View style={styles.selectBox}>
+                                    {COURIER_OPTIONS.map((item) => (
+                                        <TouchableOpacity
+                                            key={item.code}
+                                            style={[styles.selectItem, selectedBiteshipCourier?.code === item.code ? styles.selectItemActive : undefined]}
+                                            onPress={() => {
+                                                setCourierCode(item.code);
+                                                setSelectedCourierCode(item.code);
+                                                setSelectedCourierName(item.name);
+                                            }}
+                                        >
+                                            <ThemedText style={selectedBiteshipCourier?.code === item.code ? styles.selectItemTextActive : undefined}>
+                                                {item.name}
+                                            </ThemedText>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <ThemedText style={styles.label}>Kurir terpilih</ThemedText>
+                                <ThemedInput
+                                    value={selectedBiteshipCourier ? `${selectedBiteshipCourier.name} (${selectedBiteshipCourier.code})` : ''}
+                                    style={styles.input}
+                                    editable={false}
+                                    placeholder="Pilih kurir"
+                                />
+
                                 <ThemedText style={styles.label}>Layanan (opsional)</ThemedText>
                                 <ThemedInput value={service} onChangeText={setService} style={styles.input} placeholder="REG / EZ / etc" />
-                                <ThemedText style={styles.label}>Berat (gram)</ThemedText>
-                                <ThemedInput value={weight} onChangeText={setWeight} style={styles.input} keyboardType="numeric" />
+
+                                <ThemedText style={styles.label}>Berat</ThemedText>
+                                <ThemedInput value={String(totalWeight)} style={styles.input} editable={false} />
                                 <TouchableOpacity style={styles.button} onPress={submitBiteship} disabled={submitting || Boolean(shipping?.biteship_order_id)}>
                                     <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : biteshipButtonLabel}</ThemedText>
                                 </TouchableOpacity>
@@ -528,17 +618,43 @@ export default function AturPengirimanSeller() {
                 {mode === 'manual' && (
                     <ThemedView style={styles.card}>
                         <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Input Resi Manual</ThemedText>
+
                         <ThemedText style={styles.label}>Kurir</ThemedText>
-                        <ThemedInput value={manualCourier} onChangeText={setManualCourier} style={styles.input} placeholder="JNT / JNE / SICEPAT" />
+                        <View style={styles.selectBox}>
+                            {COURIER_OPTIONS.map((item) => (
+                                <TouchableOpacity
+                                    key={item.code}
+                                    style={[styles.selectItem, selectedManualCourier?.code === item.code ? styles.selectItemActive : undefined]}
+                                    onPress={() => {
+                                        setManualCourierCode(item.code);
+                                        setManualCourierName(item.name);
+                                    }}
+                                >
+                                    <ThemedText style={selectedManualCourier?.code === item.code ? styles.selectItemTextActive : undefined}>
+                                        {item.name}
+                                    </ThemedText>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <ThemedText style={styles.label}>Kurir terpilih</ThemedText>
+                        <ThemedInput
+                            value={selectedManualCourier ? `${selectedManualCourier.name} (${selectedManualCourier.code})` : ''}
+                            style={styles.input}
+                            editable={false}
+                            placeholder="Pilih kurir"
+                        />
+
                         <ThemedText style={styles.label}>Nomor Resi</ThemedText>
                         <ThemedInput value={manualResi} onChangeText={setManualResi} style={styles.input} placeholder="1234567890" />
+
                         <TouchableOpacity style={styles.button} onPress={() => void submitManual()} disabled={submitting}>
                             <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : 'Simpan Resi'}</ThemedText>
                         </TouchableOpacity>
                     </ThemedView>
                 )}
 
-                <TouchableOpacity style={[styles.button, {backgroundColor:'#86868642',}]} onPress={() => router.back()}>
+                <TouchableOpacity style={[styles.button, { backgroundColor: '#86868642' }]} onPress={() => router.back()}>
                     <ThemedText style={[styles.buttonText, { fontWeight: '700' }]}>Batal</ThemedText>
                 </TouchableOpacity>
             </ScrollView>
@@ -554,5 +670,9 @@ const styles = StyleSheet.create({
     label: { marginVertical: 4, fontWeight: '600' },
     option: { borderWidth: 1, borderColor: '#8d8d8d', padding: 10, borderRadius: 8 },
     button: { backgroundColor: '#ff330054', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-    buttonText: {fontWeight: '700' },
+    buttonText: { fontWeight: '700' },
+    selectBox: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+    selectItem: { borderWidth: 1, borderColor: '#8d8d8d', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 999 },
+    selectItemActive: { borderColor: '#ff491c', backgroundColor: '#ff491c22' },
+    selectItemTextActive: { fontWeight: '700' },
 });

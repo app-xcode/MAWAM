@@ -29,6 +29,18 @@ export default function ConfirmModal({
   const icon = destructive ? 'trash-outline' : variant === 'success' ? 'checkmark-circle-outline' : variant === 'warning' ? 'warning-outline' : 'information-circle-outline';
   const close = () => { if (!loading) onCancel(); };
 
+  const styles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: '#0008', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  card: { width: '100%', maxWidth: 420, borderRadius: 16, padding: 22, alignItems: 'center' },
+  title: { fontSize: 19, fontWeight: '700', marginTop: 10, textAlign: 'center' },
+  message: { marginTop: 8, textAlign: 'center', opacity: 0.8, lineHeight: 21 },
+  actions: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 20 },
+  button: { flex: 1, minHeight: 44, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  cancel: { borderWidth: 1 },
+  confirmText: { color:isDark?'#000':'#fff', fontWeight: '700' },
+  disabled: { opacity: 0.55 },
+});
+
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={close}>
       <View style={styles.overlay}>
@@ -51,14 +63,4 @@ export default function ConfirmModal({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: '#0008', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  card: { width: '100%', maxWidth: 420, borderRadius: 16, padding: 22, alignItems: 'center' },
-  title: { fontSize: 19, fontWeight: '700', marginTop: 10, textAlign: 'center' },
-  message: { marginTop: 8, textAlign: 'center', opacity: 0.8, lineHeight: 21 },
-  actions: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 20 },
-  button: { flex: 1, minHeight: 44, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
-  cancel: { borderWidth: 1 },
-  confirmText: { color: '#fff', fontWeight: '700' },
-  disabled: { opacity: 0.55 },
-});
+
