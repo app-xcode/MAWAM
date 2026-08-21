@@ -28,6 +28,8 @@ export default function ModalScreen() {
   const [infoPesanan, setInfoPesanan] = useState(true);
   const [showCancelRequestConfirmation, setShowCancelRequestConfirmation] = useState(false);
   const [cancellingRequest, setCancellingRequest] = useState(false);
+  const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false);
+  const [completingOrder, setCompletingOrder] = useState(false);
   const { isDark } = useTheme();
   const colorScheme = isDark ? "dark" : "light";
   const iconColor = Colors[colorScheme].icon;
@@ -119,9 +121,9 @@ export default function ModalScreen() {
     ? "Pengajuan pembatalan sudah dikirim dan sedang menunggu persetujuan penjual."
     : cancellation?.seller_decision === "rejected"
       ? cancellation.seller_rejection_reason || "Pengajuan pembatalan ditolak oleh penjual."
-        : cancellation
-          ? "Pembatalan telah disetujui dan refund sedang diproses oleh admin."
-          : null;
+      : cancellation
+        ? "Pembatalan telah disetujui dan refund sedang diproses oleh admin."
+        : null;
 
   const cancelCancellationRequest = async () => {
     if (!cancellation?.id || cancellingRequest) return;
@@ -143,6 +145,23 @@ export default function ModalScreen() {
     await fetchOrders();
   };
 
+  const completeOrder = async () => {
+    if (!orderId || completingOrder) return;
+    setCompletingOrder(true);
+    const { error } = await supabase.rpc("complete_order", { p_order_id: orderId });
+    setCompletingOrder(false);
+
+    if (error) {
+      console.log(error);
+      Alerts(error.message || "Pesanan belum dapat diselesaikan.", "error");
+      return;
+    }
+
+    setShowCompleteConfirmation(false);
+    Alerts("Pesanan berhasil diselesaikan.", "success");
+    await fetchOrders();
+  };
+
   return (
     <React.Fragment>
       <Stack.Screen options={{ title: data?.status == 'cancelled' ? "Rincian Pembatalan" : "Rincian Pesanan" }} />
@@ -158,6 +177,23 @@ export default function ModalScreen() {
               </TouchableOpacity>
               <TouchableOpacity disabled={cancellingRequest} onPress={cancelCancellationRequest} style={[styles.modalConfirmButton, cancellingRequest && styles.disabled]}>
                 {cancellingRequest ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Ya, Batalkan</ThemedText>}
+              </TouchableOpacity>
+            </View>
+          </ThemedView>
+        </View>
+      </Modal>
+      <Modal transparent visible={showCompleteConfirmation} animationType="fade" onRequestClose={() => !completingOrder && setShowCompleteConfirmation(false)}>
+        <View style={styles.modalOverlay}>
+          <ThemedView style={styles.modalCard}>
+            <Ionicons name="checkmark-circle-outline" size={30} color={ColorDark} />
+            <ThemedText style={styles.modalTitle}>Pesanan sudah diterima?</ThemedText>
+            <ThemedText style={styles.modalDescription}>Pastikan produk telah Anda terima dengan baik. Setelah dikonfirmasi, pesanan akan ditandai selesai.</ThemedText>
+            <View style={styles.modalActions}>
+              <TouchableOpacity disabled={completingOrder} onPress={() => setShowCompleteConfirmation(false)} style={styles.modalBackButton}>
+                <ThemedText style={styles.modalBackText}>Kembali</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity disabled={completingOrder} onPress={completeOrder} style={[styles.modalConfirmButton, completingOrder && styles.disabled]}>
+                {completingOrder ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Ya, Pesanan Selesai</ThemedText>}
               </TouchableOpacity>
             </View>
           </ThemedView>
@@ -516,24 +552,32 @@ export default function ModalScreen() {
           >
             <ThemedText style={styles.buttonText}>Beli Lagi</ThemedText>
           </TouchableOpacity>}
-          
-          {data?.status != 'cancelled' && !isShipped && !hasActiveCancellation && <TouchableOpacity style={[styles.button, { width: "49%", opacity: 0.7 }]}
+
+          {data?.status != 'cancelled' && data?.status != 'completed' && !isShipped && !hasActiveCancellation && <TouchableOpacity style={[styles.button, { width: "49%", opacity: 0.7 }]}
             onPress={() => {
               router.navigate({
-                pathname:'/pesanan/batalkan/',
-                params:{
+                pathname: '/pesanan/batalkan/',
+                params: {
                   orderId
-              }})
+                }
+              })
             }}
           >
             <ThemedText style={styles.buttonText}>Batalkan Pesanan</ThemedText>
           </TouchableOpacity>}
 
-          {isShipped && <TouchableOpacity
-            style={[styles.button, { width: "49%", opacity: 0.7 }]}
+          {(isShipped || data?.status == 'completed') && <TouchableOpacity
+            style={[styles.button, { width: "49%", opacity: data?.status == 'completed' ? 1 : 0.7 }]}
             onPress={() => router.navigate({ pathname: "/pesanan/lacak", params: { orderId: String(orderId) } })}
           >
-            <ThemedText style={styles.buttonText}>Lacak Pesanan</ThemedText>
+            <ThemedText style={styles.buttonText}>{data?.status == 'completed' ? 'Riwayat Pengiriman' : 'Lacak Pesanan'}</ThemedText>
+          </TouchableOpacity>}
+
+          {isShipped && <TouchableOpacity
+            style={[styles.button, { width: "49%" }]}
+            onPress={() => setShowCompleteConfirmation(true)}
+          >
+            <ThemedText style={styles.buttonText}>Pesanan Selesai</ThemedText>
           </TouchableOpacity>}
 
           {data?.status != 'cancelled' && canCancelCancellationRequest && <TouchableOpacity style={[styles.button, { width: "49%", opacity: 0.7 }]}
@@ -554,7 +598,7 @@ export default function ModalScreen() {
           >
             <ThemedText style={styles.buttonText}>Bayar</ThemedText>
           </TouchableOpacity>}
-          {data && !data?.status.includes('pending') && <Link style={[styles.button, { width: "49%", display: 'flex', justifyContent: 'center', flexDirection: 'row' }]}
+          {data && !data?.status.includes('pending') && data?.status != 'shipped' && <Link style={[styles.button, { width: "49%", display: 'flex', justifyContent: 'center', flexDirection: 'row' }]}
             target="_blank"
             href={encodeURI('https://api.whatsapp.com/send?phone=' + nohptowa(data.mawam_profile?.no_hp) + '&text=Halo Admin, Saya mau menanyakan tentang pesanan saya. Invoice: ' + data.invoice)}
           >

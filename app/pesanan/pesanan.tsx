@@ -14,7 +14,7 @@ import { useTheme } from '@/utils/theme'
 import { Ionicons } from '@expo/vector-icons'
 import { Link, Stack, router, useLocalSearchParams } from 'expo-router'
 import React, { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, TouchableOpacity, SectionList, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Modal, TouchableOpacity, SectionList, StyleSheet, View } from 'react-native'
 import { ScrollView } from 'react-native-gesture-handler'
 // import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
 const ColorDark = Colors['light'].tint;
@@ -31,6 +31,8 @@ export default function ModalScreen() {
     const [filterPro, setFilterPro] = useState<string>(tab?.toString() ?? "Semua");
     const scrollRef = useRef<ScrollView>(null);
     const tabLayouts = useRef<Record<string, { x: number; width: number }>>({});
+    const [completeOrderId, setCompleteOrderId] = useState<string | null>(null);
+    const [completingOrder, setCompletingOrder] = useState(false);
 
 
     useEffect(() => {
@@ -153,6 +155,23 @@ export default function ModalScreen() {
         setData(sections ?? []);
     }
 
+    async function completeOrder() {
+        if (!completeOrderId || completingOrder) return;
+        setCompletingOrder(true);
+        const { error } = await supabase.rpc("complete_order", { p_order_id: completeOrderId });
+        setCompletingOrder(false);
+
+        if (error) {
+            console.log(error);
+            Alerts(error.message || "Pesanan belum dapat diselesaikan.", "error");
+            return;
+        }
+
+        setCompleteOrderId(null);
+        Alerts("Pesanan berhasil diselesaikan.", "success");
+        await fetchOrders();
+    }
+
     function toggleOrder(orderId: string) {
         setData((prev: any) =>
             prev.map((section: any) => {
@@ -220,6 +239,23 @@ export default function ModalScreen() {
     return (
         <React.Fragment>
             <Stack.Screen options={{ title: 'Pesanan Saya', }} />
+            <Modal transparent visible={Boolean(completeOrderId)} animationType="fade" onRequestClose={() => !completingOrder && setCompleteOrderId(null)}>
+                <View style={styles.modalOverlay}>
+                    <ThemedView style={styles.modalCard}>
+                        <Ionicons name="checkmark-circle-outline" size={30} color={iconColor} />
+                        <ThemedText style={styles.modalTitle}>Pesanan sudah diterima?</ThemedText>
+                        <ThemedText style={styles.modalDescription}>Pastikan produk telah Anda terima dengan baik. Setelah dikonfirmasi, pesanan akan ditandai selesai.</ThemedText>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity disabled={completingOrder} onPress={() => setCompleteOrderId(null)} style={styles.modalBackButton}>
+                                <ThemedText style={styles.modalBackText}>Kembali</ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity disabled={completingOrder} onPress={completeOrder} style={[styles.modalConfirmButton, completingOrder && styles.disabled]}>
+                                {completingOrder ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Ya, Pesanan Selesai</ThemedText>}
+                            </TouchableOpacity>
+                        </View>
+                    </ThemedView>
+                </View>
+            </Modal>
             <View>
                 <ScrollView
                     ref={scrollRef}
@@ -378,6 +414,13 @@ export default function ModalScreen() {
                                     </View>}
 
                                     {statusConfig[status]?.text == 'Dikirim' && <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => {
+                                            router.navigate({ pathname: 'pesanan/lacak', params: { orderId: section.id } })
+                                        }}>
+                                            <ThemedText style={{ color: ColorLight }}>
+                                                Lacak
+                                            </ThemedText>
+                                        </TouchableOpacity>
                                         <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }} onPress={() => {
                                             router.navigate({
                                                 pathname: 'pesanan/rincian',
@@ -388,14 +431,13 @@ export default function ModalScreen() {
                                                 Rincian Pesanan
                                             </ThemedText>
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => {
-                                            router.navigate({ pathname: 'pesanan/lacak', params: { orderId: section.id } })
-                                        }}>
+                                        <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => setCompleteOrderId(section.id)}>
                                             <ThemedText style={{ color: ColorLight }}>
-                                                Lacak
+                                                Pesanan Selesai
                                             </ThemedText>
                                         </TouchableOpacity>
                                     </View>}
+
 
 
 
@@ -516,6 +558,15 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 8,
     },
+    modalOverlay: { flex: 1, backgroundColor: '#00000080', alignItems: 'center', justifyContent: 'center', padding: 24 },
+    modalCard: { width: '100%', maxWidth: 420, borderRadius: 14, padding: 20, alignItems: 'center', gap: 12 },
+    modalTitle: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
+    modalDescription: { opacity: 0.72, lineHeight: 20, textAlign: 'center' },
+    modalActions: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 6 },
+    modalBackButton: { flex: 1, borderColor: ColorDark, borderWidth: 1, borderRadius: 9, paddingVertical: 12, alignItems: 'center' },
+    modalBackText: { color: ColorDark, fontWeight: '700' },
+    modalConfirmButton: { flex: 1, backgroundColor: ColorDark, borderRadius: 9, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+    disabled: { opacity: 0.55 },
 
     center: {
         flex: 1,

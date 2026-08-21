@@ -162,7 +162,7 @@ export default function LacakPesananScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Lacak Pesanan" }} />
+      <Stack.Screen options={{ title: shipment?.status == 'Selesai' ? "Riwayat Pengiriman" : "Lacak Pesanan" }} />
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadTracking(true)} tintColor={iconColor} />}
