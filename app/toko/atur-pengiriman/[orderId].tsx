@@ -26,6 +26,22 @@ const COURIER_OPTIONS = [
     // { code: 'sap', name: 'SAP Express' },
 ];
 
+const SERVICE_OPTIONS: Record<string, { code: string; name: string }[]> = {
+    jne: [
+        { code: 'REG', name: 'JNE REG' },
+        { code: 'YES', name: 'JNE YES' },
+        { code: 'OKE', name: 'JNE OKE' },
+    ],
+    jnt: [
+        { code: 'EZ', name: 'J&T EZ' },
+    ],
+    sicepat: [
+        { code: 'REG', name: 'SiCepat REG' },
+        { code: 'BEST', name: 'SiCepat BEST' },
+        { code: 'HALU', name: 'SiCepat HALU' },
+    ],
+};
+
 function getBiteshipTrackingNumber(data: any) {
     return data?.courier?.waybill_id
         ?? data?.courier?.awb
@@ -445,7 +461,7 @@ export default function AturPengirimanSeller() {
 
     const selectedManualCourier = COURIER_OPTIONS.find(item => item.code === manualCourierCode) ?? null;
     const selectedBiteshipCourier = COURIER_OPTIONS.find(item => item.code === courierCode) ?? null;
-
+    const selectedServices = SERVICE_OPTIONS[courierCode] ?? [];
     if (loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -580,10 +596,11 @@ export default function AturPengirimanSeller() {
                                     {COURIER_OPTIONS.map((item) => (
                                         <TouchableOpacity
                                             key={item.code}
-                                            style={[styles.selectItem, selectedBiteshipCourier?.code === item.code ? styles.selectItemActive : undefined]}
+                                            style={[styles.option, selectedBiteshipCourier?.code === item.code ? styles.selectItemActive : undefined]}
                                             onPress={() => {
                                                 setCourierCode(item.code);
                                                 setSelectedCourierCode(item.code);
+                                                setService('');
                                                 setSelectedCourierName(item.name);
                                             }}
                                         >
@@ -594,19 +611,43 @@ export default function AturPengirimanSeller() {
                                     ))}
                                 </View>
 
-                                <ThemedText style={styles.label}>Kurir terpilih</ThemedText>
-                                <ThemedInput
-                                    value={selectedBiteshipCourier ? `${selectedBiteshipCourier.name} (${selectedBiteshipCourier.code})` : ''}
-                                    style={styles.input}
-                                    editable={false}
-                                    placeholder="Pilih kurir"
+                                {selectedBiteshipCourier &&
+                                    <ThemedInput
+                                        value={selectedBiteshipCourier ? `${selectedBiteshipCourier.name} (${selectedBiteshipCourier.code})` : ''}
+                                        style={styles.input}
+                                        editable={false}
+                                        placeholder="Pilih kurir"
+                                        label={<ThemedText style={styles.label}>Kurir terpilih</ThemedText>}
+                                    />}
+
+                                {courierCode !== '' && (
+                                    <View style={{ marginTop: 10 }}>
+                                        <ThemedText style={{ marginBottom: 6, fontWeight: 600 }}>
+                                            Pilih Layanan
+                                        </ThemedText>
+
+                                        <View style={{ gap: 8, flexDirection: 'row' }}>
+                                            {selectedServices.map((item) => (
+                                                <TouchableOpacity
+                                                    key={item.code}
+                                                    style={[
+                                                        styles.option,
+                                                        service === item.code
+                                                            ? { borderColor: '#ff491c' }
+                                                            : undefined,
+                                                    ]}
+                                                    onPress={() => setService(item.code)}
+                                                >
+                                                    <ThemedText>{item.name}</ThemedText>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </View>
+                                )}
+
+                                <ThemedInput value={String(totalWeight)} style={styles.input} editable={false}
+                                label={<ThemedText style={styles.label}>Berat</ThemedText>}
                                 />
-
-                                <ThemedText style={styles.label}>Layanan (opsional)</ThemedText>
-                                <ThemedInput value={service} onChangeText={setService} style={styles.input} placeholder="REG / EZ / etc" />
-
-                                <ThemedText style={styles.label}>Berat</ThemedText>
-                                <ThemedInput value={String(totalWeight)} style={styles.input} editable={false} />
                                 <TouchableOpacity style={styles.button} onPress={submitBiteship} disabled={submitting || Boolean(shipping?.biteship_order_id)}>
                                     <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : biteshipButtonLabel}</ThemedText>
                                 </TouchableOpacity>
@@ -624,7 +665,7 @@ export default function AturPengirimanSeller() {
                             {COURIER_OPTIONS.map((item) => (
                                 <TouchableOpacity
                                     key={item.code}
-                                    style={[styles.selectItem, selectedManualCourier?.code === item.code ? styles.selectItemActive : undefined]}
+                                    style={[styles.option, selectedManualCourier?.code === item.code ? styles.selectItemActive : undefined]}
                                     onPress={() => {
                                         setManualCourierCode(item.code);
                                         setManualCourierName(item.name);
@@ -637,16 +678,17 @@ export default function AturPengirimanSeller() {
                             ))}
                         </View>
 
-                        <ThemedText style={styles.label}>Kurir terpilih</ThemedText>
                         <ThemedInput
                             value={selectedManualCourier ? `${selectedManualCourier.name} (${selectedManualCourier.code})` : ''}
                             style={styles.input}
                             editable={false}
                             placeholder="Pilih kurir"
+                            label={<ThemedText style={styles.label}>Kurir terpilih</ThemedText>}
                         />
 
-                        <ThemedText style={styles.label}>Nomor Resi</ThemedText>
-                        <ThemedInput value={manualResi} onChangeText={setManualResi} style={styles.input} placeholder="1234567890" />
+                        <ThemedInput value={manualResi} onChangeText={setManualResi} style={styles.input} placeholder="1234567890"
+                        label={<ThemedText style={styles.label}>Nomor Resi</ThemedText>}
+                        />
 
                         <TouchableOpacity style={styles.button} onPress={() => void submitManual()} disabled={submitting}>
                             <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : 'Simpan Resi'}</ThemedText>
@@ -672,7 +714,6 @@ const styles = StyleSheet.create({
     button: { backgroundColor: '#ff330054', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
     buttonText: { fontWeight: '700' },
     selectBox: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-    selectItem: { borderWidth: 1, borderColor: '#8d8d8d', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 999 },
     selectItemActive: { borderColor: '#ff491c', backgroundColor: '#ff491c22' },
     selectItemTextActive: { fontWeight: '700' },
 });
