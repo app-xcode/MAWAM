@@ -21,14 +21,20 @@ export async function createNotification(payload: NotificationPayload) {
       .insert(insertPayload)
       .select();
 
-    // Unique index pada dedupe_key akan menolak duplikat; ini kondisi normal.
-    if (insertError && insertError.code !== '23505') {
-      console.error('createNotification insert error', insertError);
+    // Unique index pada dedupe_key akan menolak duplikat; itu berarti notifikasi ini sudah pernah dibuat.
+    if (insertError) {
+      if (insertError.code !== '23505') {
+        console.error('createNotification insert error', insertError);
+      }
+      return null;
     }
 
     const notificationRow = Array.isArray(inserted) && inserted.length ? inserted[0] : null;
+    if (!notificationRow) {
+      return null;
+    }
 
-    // fetch active tokens
+    // fetch active tokens only after DB row is created successfully
     const tokens = await listActiveTokens(userId);
 
     if (tokens && tokens.length) {
@@ -53,6 +59,21 @@ export async function createNotification(payload: NotificationPayload) {
   }
 }
 
+export async function getUnreadNotificationCount(userId: string) {
+  const { count, error } = await supabase
+    .from('notifikasi')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+
+  if (error) {
+    console.error('getUnreadNotificationCount error', error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
 export async function markAsRead(notificationId: string, userId: string) {
   try {
     const { error } = await supabase.from('notifikasi').update({ is_read: true }).eq('id', notificationId).eq('user_id', userId);
@@ -71,6 +92,38 @@ export async function markAllAsRead(userId: string) {
     return true;
   } catch (err) {
     console.error('markAllAsRead error', err);
+    return false;
+  }
+}
+
+export async function deleteNotification(notificationId: string, userId: string) {
+  try {
+    const { error } = await supabase
+      .from('notifikasi')
+      .delete()
+      .eq('id', notificationId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('deleteNotification error', err);
+    return false;
+  }
+}
+
+export async function deleteReadNotifications(userId: string) {
+  try {
+    const { error } = await supabase
+      .from('notifikasi')
+      .delete()
+      .eq('user_id', userId)
+      .eq('is_read', true);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('deleteReadNotifications error', err);
     return false;
   }
 }

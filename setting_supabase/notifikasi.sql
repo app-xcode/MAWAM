@@ -17,6 +17,7 @@ create table if not exists public.notifikasi (
     created_at timestamptz default now() not null
 );
 
+
 create index if not exists idx_notifikasi_user_created_at on public.notifikasi (user_id, created_at desc);
 
 -- Prevent duplicate notifications for same dedupe_key per user
@@ -24,6 +25,8 @@ create unique index if not exists ux_notifikasi_user_dedupe on public.notifikasi
 
 -- Row Level Security: only allow users to access their own notifications
 alter table public.notifikasi enable row level security;
+
+drop policy if exists "notifikasi_select_insert_update" on public.notifikasi;
 
 create policy "notifikasi_select_insert_update" on public.notifikasi
     for all
@@ -47,10 +50,21 @@ create index if not exists idx_notification_tokens_user on public.notification_t
 
 alter table public.notification_tokens enable row level security;
 
+drop policy if exists "notification_tokens_manage_own" on public.notification_tokens;
+
 create policy "notification_tokens_manage_own" on public.notification_tokens
     for all
     using (auth.uid() = user_id)
     with check (auth.uid() = user_id);
+
+do $$
+begin
+    alter publication supabase_realtime add table public.notifikasi;
+exception
+    when duplicate_object then null;
+    when undefined_object then null;
+end
+$$;
 
 -- Notes:
 -- 1) Service/backend should use the Supabase service_role key when sending FCM and when performing cross-user operations.

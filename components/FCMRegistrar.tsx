@@ -110,30 +110,39 @@ async function listenWebForegroundNotifications() {
 export default function FCMRegistrar() {
   const { user } = useAuth();
   const currentTokenRef = useRef<string | null>(null);
-  const currentUserRef = useRef<string | null>(null);
+  const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
 
     let unsubscribe: (() => void) | null = null;
+    let cancelled = false;
     listenWebForegroundNotifications().then((listener) => {
+      if (cancelled) {
+        listener?.();
+        return;
+      }
       unsubscribe = listener;
     }).catch((err) => console.error('FCM foreground listener error', err));
 
-    return () => unsubscribe?.();
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, []);
 
   useEffect(() => {
-    currentUserRef.current = user?.id ?? null;
     let mounted = true;
+    const previousUserId = previousUserIdRef.current;
+    previousUserIdRef.current = user?.id ?? null;
 
     (async () => {
       if (!mounted) return;
       if (!user) {
         // user logged out -> deactivate token for previous user on device
-        if (currentTokenRef.current && currentUserRef.current) {
+        if (currentTokenRef.current && previousUserId) {
           try {
-            await removeToken(currentUserRef.current, currentTokenRef.current);
+            await removeToken(previousUserId, currentTokenRef.current);
             console.log('FCM token removed on logout:', currentTokenRef.current);
           } catch (err) {
             console.error('removeToken on logout failed', err);

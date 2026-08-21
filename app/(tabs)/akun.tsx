@@ -8,6 +8,7 @@ import { formatWaktu } from "@/constants/countDown";
 import { Colors } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { notifyLoginSuccess } from "@/services/notification/notificationTriggers";
+import { getUnreadNotificationCount } from "@/services/notification/notificationService";
 import { registerNotificationToken } from "@/components/FCMRegistrar";
 import { useCart } from "@/utils/CartContext";
 import { useAuth } from "@/utils/auth";
@@ -47,6 +48,7 @@ export default function Akun() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [tokoSaya, setTokoSaya] = useState<any | null>(null);
   const { cart } = useCart();
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [totalPesanan, setTotalPesanan] = useState({ belum_bayar: 0, dikemas: 0, dikirim: 0, selesai: 0 });
 
@@ -142,6 +144,48 @@ export default function Akun() {
   useEffect(() => {
     loadProfile();
   }, [user]);
+  
+  useEffect(() => {
+  if (user?.id) {
+    loadUnreadNotificationCount();
+  } else {
+    setUnreadNotificationCount(0);
+  }
+}, [user?.id]);
+
+  useEffect(() => {
+  if (!user?.id) return;
+
+  const channel = supabase
+    .channel(`akun-notifikasi:${user.id}:${Date.now()}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'notifikasi',
+        filter: `user_id=eq.${user.id}`,
+      },
+      () => {
+        loadUnreadNotificationCount();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [user?.id]);
+
+  async function loadUnreadNotificationCount() {
+    if (!user) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    const count = await getUnreadNotificationCount(user.id);
+    setUnreadNotificationCount(count);
+  }
 
   const convertToWebp = async (image: any) => {
     const result = await ImageManipulator.manipulateAsync(
@@ -531,6 +575,13 @@ export default function Akun() {
             <ThemedText>
               <Ionicons name="notifications-outline" size={25} />
             </ThemedText>
+            {unreadNotificationCount > 0 && (
+              <View style={{ position: 'absolute', top: -4, right: -6, minWidth: 18, height: 18, borderRadius: 999, backgroundColor: '#ff4a1c', alignItems: 'center', justifyContent: 'center', paddingHorizontal: unreadNotificationCount > 99 ? 4 : 5 }}>
+                <ThemedText style={{ color: '#ffffff', fontSize: unreadNotificationCount > 99 ? 9 : 10, fontWeight: '700' }} numberOfLines={1}>
+                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                </ThemedText>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {

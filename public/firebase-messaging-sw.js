@@ -26,15 +26,8 @@ const firebaseConfig = {
     firebase.initializeApp(firebaseConfig);
     const messaging = firebase.messaging();
 
-    messaging.onBackgroundMessage(function (payload) {
-      console.log('[firebase-messaging-sw] Received background message ', payload);
-      const notificationTitle = payload.notification?.title || 'Notification';
-      const notificationOptions = {
-        body: payload.notification?.body || '',
-        data: payload.data || {},
-      };
-      self.registration.showNotification(notificationTitle, notificationOptions);
-    });
+    // Jangan tampilkan notifikasi manual di sini.
+    // Payload dengan `notification` akan ditangani FCM secara otomatis di background web.
   } catch (err) {
     console.error('firebase-messaging-sw init error', err);
   }
