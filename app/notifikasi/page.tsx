@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { TouchableOpacity, FlatList, StyleSheet, View } from 'react-native';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { markAsRead, markAllAsRead, fetchNotifications, getUnreadNotificationCount, deleteNotification, deleteReadNotifications } from '@/services/notification/notificationService';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { ScrollView } from 'react-native-gesture-handler';
 
 export default function NotifikasiPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -199,58 +200,87 @@ export default function NotifikasiPage() {
   };
 
   return (
-    <ThemedView style={{ padding: 12 }}>
-      <ConfirmModal visible={Boolean(pendingDelete)} title="Hapus notifikasi?" message="Notifikasi ini akan dihapus dan tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" loading={deleting} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteNotification} />
-      <ConfirmModal visible={deleteReadOpen} title="Hapus notifikasi dibaca?" message="Semua notifikasi yang sudah dibaca akan dihapus." confirmText="Hapus" variant="destructive" loading={deleting} onCancel={() => setDeleteReadOpen(false)} onConfirm={confirmDeleteRead} />
-      <ThemedText type="title">Notifikasi</ThemedText>
-      <ThemedText>Belum dibaca: {unreadCount}</ThemedText>
-      <View style={styles.actionRow}>
-        <TouchableOpacity onPress={handleMarkAll} style={styles.button}>
-          <ThemedText>Tandai semua sudah dibaca</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleDeleteRead} style={[styles.button, styles.secondaryButton]}>
-          <ThemedText>Hapus yang sudah dibaca</ThemedText>
-        </TouchableOpacity>
-      </View>
-
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={[styles.item, !item.is_read && styles.unread]}>
-            <TouchableOpacity style={styles.itemBody} onPress={() => handlePress(item)}>
-              <View style={styles.titleRow}>
-                {!item.is_read && (
-                  <ThemedView style={styles.badge}>
-                    <ThemedText style={styles.badgeText}>Baru</ThemedText>
-                  </ThemedView>
-                )}
-                <ThemedText style={[styles.itemTitle, !item.is_read && styles.itemTitleUnread]}>{item.title}</ThemedText>
-              </View>
-              <ThemedText style={styles.itemMsg}>{item.message}</ThemedText>
-              <ThemedText style={styles.itemDate}>{new Date(item.created_at).toLocaleString()}</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteNotification(item)}>
-              <Ionicons name="trash-outline" size={18} color="#d32f2f" />
-            </TouchableOpacity>
-          </View>
-        )}
-        refreshing={loading}
-        onRefresh={async () => {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return;
-          const data = await fetchNotifications(user.id);
-          setNotifications(data || []);
-          setUnreadCount((data || []).filter((n: any) => !n.is_read).length);
+    <React.Fragment>
+      <Stack.Screen
+        options={{
+          title: 'Notifikasi',
         }}
       />
-    </ThemedView>
+      <ConfirmModal visible={Boolean(pendingDelete)} title="Hapus notifikasi?" message="Notifikasi ini akan dihapus dan tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" loading={deleting} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteNotification} />
+      <ConfirmModal visible={deleteReadOpen} title="Hapus notifikasi dibaca?" message="Semua notifikasi yang sudah dibaca akan dihapus." confirmText="Hapus" variant="destructive" loading={deleting} onCancel={() => setDeleteReadOpen(false)} onConfirm={confirmDeleteRead} />
+      {notifications.length == 0 &&
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 10
+        }}>
+          <Ionicons
+            name="notifications"
+            size={80}
+            color="#9CA3AF"
+          />
+
+          <ThemedText style={{ marginTop: 12, fontSize: 18, fontWeight: "600" }}>
+            Belum ada Notifkasi
+          </ThemedText>
+
+          <ThemedText style={{ color: "#6B7280", textAlign: "center", marginTop: 4 }}>
+            Notifikasi akan muncul di sini.
+          </ThemedText>
+        </View>
+      }
+      {notifications.length > 0 && <ScrollView style={{ padding: 12 }}>
+        {/* <ThemedText type="title">Notifikasi</ThemedText> */}
+        {unreadCount > 0 && <ThemedText>Belum dibaca: {unreadCount}</ThemedText>}
+        {notifications.length > 0 && <View style={styles.actionRow}>
+          <TouchableOpacity onPress={handleMarkAll} style={styles.button}>
+            <ThemedText>Tandai semua sudah dibaca</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleDeleteRead} style={[styles.button, styles.secondaryButton]}>
+            <ThemedText>Hapus yang sudah dibaca</ThemedText>
+          </TouchableOpacity>
+        </View>}
+
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={[styles.item, !item.is_read && styles.unread]}>
+              <TouchableOpacity style={styles.itemBody} onPress={() => handlePress(item)}>
+                <View style={styles.titleRow}>
+                  {!item.is_read && (
+                    <ThemedView style={styles.badge}>
+                      <ThemedText style={styles.badgeText}>Baru</ThemedText>
+                    </ThemedView>
+                  )}
+                  <ThemedText style={[styles.itemTitle, !item.is_read && styles.itemTitleUnread]}>{item.title}</ThemedText>
+                </View>
+                <ThemedText style={styles.itemMsg}>{item.message}</ThemedText>
+                <ThemedText style={styles.itemDate}>{new Date(item.created_at).toLocaleString()}</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteNotification(item)}>
+                <Ionicons name="trash-outline" size={18} color="#d32f2f" />
+              </TouchableOpacity>
+            </View>
+          )}
+          refreshing={loading}
+          onRefresh={async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const data = await fetchNotifications(user.id);
+            setNotifications(data || []);
+            setUnreadCount((data || []).filter((n: any) => !n.is_read).length);
+          }}
+        />
+      </ScrollView>}
+    </React.Fragment>
   );
 }
 
 const styles = StyleSheet.create({
-  button: { marginVertical: 8, padding: 8, backgroundColor: '#eee', borderRadius: 8 },
-  secondaryButton: { backgroundColor: '#f4f4f4' },
+  button: { marginVertical: 8, padding: 8, backgroundColor: '#e4e4e4', borderRadius: 8 },
+  secondaryButton: { backgroundColor: '#ffcec2' },
   actionRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
   item: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee', gap: 8, flexDirection: 'row', alignItems: 'flex-start' },
   unread: { backgroundColor: '#f6f9ff' },
