@@ -30,10 +30,12 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 export default function Akun() {
-  const { isDark } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
   const colorScheme = isDark ? "dark" : "light";
-  const ColorBg = Colors[colorScheme].text;
-  const ColorText = Colors[colorScheme].background;
+  const palette = Colors[colorScheme];
+  const invertPalette = Colors[isDark ? "light" : "dark"];
+  const ColorBg = palette.text;
+  const ColorText = palette.background;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -42,8 +44,8 @@ export default function Akun() {
   const { session, user } = useAuth();
   const [avatar, setAvatar] = useState<string | null>(null);
   const [loading, setloading] = useState(0);
-  const iconColor = Colors[isDark ? "dark" : "light"].text;
-  const inIconColor = Colors[isDark ? "light" : "dark"].text;
+  const iconColor = palette.text;
+  const inIconColor = invertPalette.text;
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [tokoSaya, setTokoSaya] = useState<any | null>(null);
@@ -61,7 +63,7 @@ export default function Akun() {
       width: `${100 / 2.1}%`,
       padding: 8,
       borderWidth: 1,
-      borderColor: "#cccccc",
+      borderColor: palette.border,
       borderRadius: 4,
     },
     button: {
@@ -380,10 +382,10 @@ export default function Akun() {
       });
     }}
   >
-    <View style={{ position: 'relative' }}>
-      <ThemedText>
-        <Ionicons name={icon} size={32} />
-      </ThemedText>
+      <View style={{ position: 'relative' }}>
+        <ThemedText>
+          <Ionicons name={icon} size={32} />
+        </ThemedText>
       {total > 0 && <View style={{ position: 'absolute', backgroundColor: '#ff4a1c', width: 15, height: 15, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', right: -3, top: -3, opacity: 0.9 }}>
         <ThemedText style={{ color: '#ffffff', fontSize: 12 }} numberOfLines={1}>{total}</ThemedText>
       </View>}
@@ -572,9 +574,7 @@ export default function Akun() {
         </View>
         <View style={{ flexDirection: "row", gap: 8, alignItems: "center", flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity onPress={handleNotificationPress} style={{ position: 'relative' }}>
-            <ThemedText>
-              <Ionicons name="notifications-outline" size={25} />
-            </ThemedText>
+            <Ionicons name="notifications-outline" size={25} color={iconColor} />
             {unreadNotificationCount > 0 && (
               <View style={{ position: 'absolute', top: -4, right: -6, minWidth: 18, height: 18, borderRadius: 999, backgroundColor: '#ff4a1c', alignItems: 'center', justifyContent: 'center', paddingHorizontal: unreadNotificationCount > 99 ? 4 : 5 }}>
                 <ThemedText style={{ color: '#ffffff', fontSize: unreadNotificationCount > 99 ? 9 : 10, fontWeight: '700' }} numberOfLines={1}>
@@ -583,15 +583,20 @@ export default function Akun() {
               </View>
             )}
           </TouchableOpacity>
+          <TouchableOpacity onPress={toggleTheme} style={{ position: 'relative' }}>
+            <Ionicons
+              name={isDark ? "sunny-outline" : "moon-outline"}
+              size={25}
+              color={iconColor}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
               router.navigate("cart");
             }}
             style={{ position: 'relative' }}
           >
-            <ThemedText>
-              <Ionicons name="cart-outline" size={25} />
-            </ThemedText>
+            <Ionicons name="cart-outline" size={25} color={iconColor} />
             {cart && cart.length > 0 && <View style={{ position: 'absolute', backgroundColor: '#ff4a1c', width: 15, height: 15, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', right: -3, top: -3, opacity: 0.9 }}>
               <ThemedText style={{ color: '#ffffff', fontSize: cart.length < 99 ? 12 : 6 }} numberOfLines={1}>{cart.length < 99 ? cart.length : '99+'}</ThemedText>
             </View>}

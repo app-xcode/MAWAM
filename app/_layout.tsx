@@ -27,14 +27,14 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  // const colorScheme = useColorScheme();
-  const colorScheme = 'dark';
-  const darkSy = colorScheme != 'dark';
-  const [isDark, setIsDark] = useState(darkSy);
+  const colorScheme = useColorScheme();
+  const [isDark, setIsDark] = useState(colorScheme === 'dark');
   const toggleTheme = () => setIsDark(prev => !prev);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    setIsDark(colorScheme != 'dark')
+    if (colorScheme) {
+      setIsDark(colorScheme === 'dark');
+    }
   }, [colorScheme]);
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <SafeAreaProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? Colors['dark'].background : Colors['light'].background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? Colors.dark.background : Colors.light.background }}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             {Platform.OS === 'web' && <ThemeMetaUpdater setTheme={isDark ? 'dark' : 'light'} />}
             <ThemeContext.Provider value={{ isDark, toggleTheme }}>
@@ -79,11 +79,19 @@ export default function RootLayout() {
                         <Stack.Screen name="(tabs)" options={{ title: 'Beranda', headerShown: false }} />
                         <Stack.Screen name="prod/detail" options={{ presentation: 'modal', title: 'Detail Produk', headerShown: true }} />
                         <Stack.Screen name="prod/form" options={{ presentation: 'modal', title: 'Form Produk', headerShown: true }} />
+                        <Stack.Screen name="prod/showQrCode" options={{ presentation: 'modal', title: 'Tampilkan QR Code', headerShown: true }} />
+                        <Stack.Screen name="prod/imageFull" options={{ presentation: 'modal', headerShown: false }} />
                         <Stack.Screen name="kategori/index" options={{ presentation: 'modal', title: 'Kategori', headerShown: true }} />
                         <Stack.Screen name="toko/detail" options={{ presentation: 'modal', title: 'Detail Toko', headerShown: true }} />
+                        <Stack.Screen name="toko/Produks" options={{ presentation: 'modal', title: 'Produk Toko', headerShown: true }} />
+                        <Stack.Screen name="toko/atur-pengiriman/[orderId]" options={{ presentation: 'modal', title: 'Atur Pengiriman', headerShown: true }} />
                         <Stack.Screen name="checkout/checkout" options={{ presentation: 'modal', title: 'Checkout', headerShown: true }} />
                         <Stack.Screen name="pesanan/pesanan" options={{ presentation: 'modal', title: 'Pesanan Saya', headerShown: true }} />
+                        <Stack.Screen name="toko/pesanan/[orderId]" options={{ presentation: 'modal', title: 'Rincian Pesanan', headerShown: true }} />
                         <Stack.Screen name="toko/pembatalan/[orderId]" options={{ presentation: 'modal', title: 'Rincian Pembatalan', headerShown: true }} />
+                        <Stack.Screen name="toko/pengiriman/[pengirimanId]" options={{ presentation: 'modal', title: 'Update Lokasi Paket', headerShown: true }} />
+                        <Stack.Screen name="toko/review/[orderId]" options={{ presentation: 'modal', title: 'Penilaian Produk', headerShown: true }} />
+                        <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan QR', headerShown: true }} />
                         {/* <Stack.Screen name="cart/cart" options={{ presentation: 'card', title: 'My Cart', headerShown: true }} /> */}
                       </Stack>
                     </LikeProvider>

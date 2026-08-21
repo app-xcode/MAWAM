@@ -391,7 +391,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
 
                 <ThemedText style={[styles.metas]}>
                     {data?.harga
-                        ? `${rupiah(data.discount ? (data.harga - (data.harga * (data.discount / 100))) : data.harga, '')} / ${data?.satuan ?? 'unit'}`
+                        ? `${rupiah(data.discount ? (data.harga - (data.harga * (data.discount / 100))) : data.harga, 'Rp')} / ${data?.satuan ?? 'unit'}`
                         : '-'}
                 </ThemedText>
             </ThemedView>

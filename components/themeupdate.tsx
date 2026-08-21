@@ -1,29 +1,30 @@
-export default function ThemeMetaUpdater({setTheme}:any|null) {
-  const setThemeMeta = (theme: 'dark' | 'light') => {
-    const body = document.querySelector('body');
-    const themeColor = document.querySelector('meta[name="theme-color"]');
-    const statusBar = document.querySelector(
-      'meta[name="apple-mobile-web-app-status-bar-style"]'
-    );
+import { useEffect } from 'react';
 
-    if (themeColor) themeColor.setAttribute("content", theme === "dark" ? "#151718" : "#ffffff");
-    if (statusBar)
-      statusBar.setAttribute(
-        "content",
-        theme === "dark" ? "black-translucent" : "default"
-      );
-      if(body) body.style.backgroundColor = theme === 'dark' ? '#151718':'#ffffff';
-  };
+export default function ThemeMetaUpdater({ setTheme }: any) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-  // cek tema awal
-  const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  setThemeMeta(setTheme || (darkQuery.matches ? "dark" : "light"));
+    const setThemeMeta = (theme: 'dark' | 'light') => {
+      const body = document.querySelector('body');
+      const themeColor = document.querySelector('meta[name="theme-color"]');
+      const statusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
 
-  // listen perubahan tema
-  const listener = (e: any) => setThemeMeta(setTheme || (e.matches ? "dark" : "light"));
-  darkQuery.addEventListener("change", listener);
+      if (themeColor) themeColor.setAttribute('content', theme === 'dark' ? '#151718' : '#ffffff');
+      if (statusBar) statusBar.setAttribute('content', theme === 'dark' ? 'black-translucent' : 'default');
+      if (body) body.style.backgroundColor = theme === 'dark' ? '#151718' : '#ffffff';
+      if (body) body.dataset.theme = theme;
+    };
 
-  darkQuery.removeEventListener("change", listener)
+    const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => setThemeMeta(setTheme || (darkQuery.matches ? 'dark' : 'light'));
 
-  return null; // component ini nggak render apa-apa
+    applyTheme();
+    darkQuery.addEventListener('change', applyTheme);
+
+    return () => {
+      darkQuery.removeEventListener('change', applyTheme);
+    };
+  }, [setTheme]);
+
+  return null;
 }

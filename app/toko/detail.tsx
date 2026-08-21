@@ -118,7 +118,9 @@ export default function ModalScreen() {
            href && router.navigate(href)
         }}
         >
-            <ThemedText style={{ fontWeight: 600, fontSize: 18 }}>{angka??0}</ThemedText>
+            <View style={{backgroundColor:angka?'#ff491c':undefined, paddingHorizontal:10, borderRadius:'50%'}}>
+            <ThemedText style={{ fontWeight: 600, fontSize: 18, color:angka?'#fff':undefined }}>{angka??0}</ThemedText>
+            </View>
             <ThemedText style={{ opacity: 0.7, fontSize: 14 }} numberOfLines={1}>{text??'Text'}</ThemedText>
         </TouchableOpacity>)
     }

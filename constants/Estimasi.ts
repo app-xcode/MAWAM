@@ -14,8 +14,8 @@ export const Estimasi = (waktu : any, minmax:{min:number,max:number}={min:5,max:
 export const ekstrakEstimasi = (string_hari : any) => {
     if(string_hari){
         const string_ = typeof string_hari == 'object' ? string_hari[0] :string_hari;
-        const digit = string_.replace(/hari|\s/g,'');
-        if(digit.includes('-')){
+        const digit = string_?.replace(/hari|\s/g,'');
+        if(digit?.includes('-')){
             const [min, max] = digit.split('-')?.map((d:any)=>parseInt(d));
             return {min, max}
         }else{

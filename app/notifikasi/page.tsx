@@ -279,11 +279,11 @@ export default function NotifikasiPage() {
 }
 
 const styles = StyleSheet.create({
-  button: { marginVertical: 8, padding: 8, backgroundColor: '#e4e4e4', borderRadius: 8 },
-  secondaryButton: { backgroundColor: '#ffcec2' },
+  button: { marginVertical: 8, padding: 8, backgroundColor: '#8a8a8a18', borderRadius: 8 },
+  secondaryButton: { backgroundColor: '#ff330028' },
   actionRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
   item: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee', gap: 8, flexDirection: 'row', alignItems: 'flex-start' },
-  unread: { backgroundColor: '#f6f9ff' },
+  unread: { backgroundColor: '#75d3ff23' },
   itemBody: { flex: 1, gap: 4 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   itemTitle: { fontWeight: '600', flexShrink: 1 },

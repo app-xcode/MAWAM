@@ -278,7 +278,7 @@ export default function MayarScreen() {
 
                             <ThemedText style={styles.value}>
                                 Rp
-                                {rupiah((data?.payment_method === "qris_dinamis" ?  data?.amount_unik : data?.amount) || 0)}
+                                {rupiah((data?.payment_method === "qris_dinamis" && data?.amount_unik ?  data?.amount_unik : data?.amount) || 0)}
                             </ThemedText>
                         </View>
                         <View style={styles.rowBorder}>

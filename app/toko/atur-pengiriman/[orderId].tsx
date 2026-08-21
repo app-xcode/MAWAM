@@ -1,3 +1,4 @@
+import ThemedInput from '@/components/themed-input';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -5,11 +6,12 @@ import Alerts from '@/constants/Alerts';
 import { rupiah } from '@/constants/rupiah';
 import { Colors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { notifyOrderShippedToBuyer } from '@/services/notification/notificationTriggers';
 import { useAuth } from '@/utils/auth';
 import { useTheme } from '@/utils/theme';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 const BITESHIP_ENDPOINT = 'https://crzymkebjvqhqlvjhrwb.supabase.co/functions/v1/biteship';
 
@@ -442,10 +444,10 @@ export default function AturPengirimanSeller() {
                 <ThemedView style={styles.card}>
                     <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Pilih Metode</ThemedText>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity style={[styles.option, mode === 'biteship' ? { borderColor: '#161616' } : undefined]} onPress={() => { setMode('biteship'); setUseBuyerChoice(true); }}>
+                        <TouchableOpacity style={[styles.option, mode === 'biteship' ? { borderColor: '#ff491c' } : undefined]} onPress={() => { setMode('biteship'); setUseBuyerChoice(true); }}>
                             <ThemedText>Buat via Biteship</ThemedText>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.option, mode === 'manual' ? { borderColor: '#161616' } : undefined]} onPress={() => setMode('manual')}>
+                        <TouchableOpacity style={[styles.option, mode === 'manual' ? { borderColor: '#ff491c' } : undefined]} onPress={() => setMode('manual')}>
                             <ThemedText>Input Resi Manual</ThemedText>
                         </TouchableOpacity>
                     </View>
@@ -455,10 +457,10 @@ export default function AturPengirimanSeller() {
                     <ThemedView style={styles.card}>
                         <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Buat Pengiriman (Biteship)</ThemedText>
                         <View style={{ flexDirection: 'row', gap: 8 }}>
-                            <TouchableOpacity style={[styles.option, useBuyerChoice ? { borderColor: '#161616' } : undefined]} onPress={() => setUseBuyerChoice(true)}>
+                            <TouchableOpacity style={[styles.option, useBuyerChoice ? { borderColor: '#ff491c' } : undefined]} onPress={() => setUseBuyerChoice(true)}>
                                 <ThemedText>Gunakan pilihan pembeli</ThemedText>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.option, !useBuyerChoice ? { borderColor: '#161616' } : undefined]} onPress={() => setUseBuyerChoice(false)}>
+                            <TouchableOpacity style={[styles.option, !useBuyerChoice ? { borderColor: '#ff491c' } : undefined]} onPress={() => setUseBuyerChoice(false)}>
                                 <ThemedText>Atur manual</ThemedText>
                             </TouchableOpacity>
                         </View>
@@ -510,11 +512,11 @@ export default function AturPengirimanSeller() {
                         ) : (
                             <View style={{ marginTop: 12 }}>
                                 <ThemedText style={styles.label}>Kode kurir</ThemedText>
-                                <TextInput value={courierCode} onChangeText={setCourierCode} style={styles.input} placeholder="jne, jnt, sicepat" />
+                                <ThemedInput value={courierCode} onChangeText={setCourierCode} style={styles.input} placeholder="jne, jnt, sicepat" />
                                 <ThemedText style={styles.label}>Layanan (opsional)</ThemedText>
-                                <TextInput value={service} onChangeText={setService} style={styles.input} placeholder="REG / EZ / etc" />
+                                <ThemedInput value={service} onChangeText={setService} style={styles.input} placeholder="REG / EZ / etc" />
                                 <ThemedText style={styles.label}>Berat (gram)</ThemedText>
-                                <TextInput value={weight} onChangeText={setWeight} style={styles.input} keyboardType="numeric" />
+                                <ThemedInput value={weight} onChangeText={setWeight} style={styles.input} keyboardType="numeric" />
                                 <TouchableOpacity style={styles.button} onPress={submitBiteship} disabled={submitting || Boolean(shipping?.biteship_order_id)}>
                                     <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : biteshipButtonLabel}</ThemedText>
                                 </TouchableOpacity>
@@ -527,16 +529,16 @@ export default function AturPengirimanSeller() {
                     <ThemedView style={styles.card}>
                         <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Input Resi Manual</ThemedText>
                         <ThemedText style={styles.label}>Kurir</ThemedText>
-                        <TextInput value={manualCourier} onChangeText={setManualCourier} style={styles.input} placeholder="JNT / JNE / SICEPAT" />
+                        <ThemedInput value={manualCourier} onChangeText={setManualCourier} style={styles.input} placeholder="JNT / JNE / SICEPAT" />
                         <ThemedText style={styles.label}>Nomor Resi</ThemedText>
-                        <TextInput value={manualResi} onChangeText={setManualResi} style={styles.input} placeholder="1234567890" />
+                        <ThemedInput value={manualResi} onChangeText={setManualResi} style={styles.input} placeholder="1234567890" />
                         <TouchableOpacity style={styles.button} onPress={() => void submitManual()} disabled={submitting}>
                             <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : 'Simpan Resi'}</ThemedText>
                         </TouchableOpacity>
                     </ThemedView>
                 )}
 
-                <TouchableOpacity style={[styles.button, { opacity: 0.7 }]} onPress={() => router.back()}>
+                <TouchableOpacity style={[styles.button, {backgroundColor:'#86868642',}]} onPress={() => router.back()}>
                     <ThemedText style={[styles.buttonText, { fontWeight: '700' }]}>Batal</ThemedText>
                 </TouchableOpacity>
             </ScrollView>
@@ -550,7 +552,7 @@ const styles = StyleSheet.create({
     input: { borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 12 },
     row: { flexDirection: 'row', gap: 10, alignItems: 'center' },
     label: { marginVertical: 4, fontWeight: '600' },
-    option: { borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 8 },
-    button: { backgroundColor: '#161616', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-    buttonText: { color: '#fff', fontWeight: '700' },
+    option: { borderWidth: 1, borderColor: '#8d8d8d', padding: 10, borderRadius: 8 },
+    button: { backgroundColor: '#ff330054', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+    buttonText: {fontWeight: '700' },
 });

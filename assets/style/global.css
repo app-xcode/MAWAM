@@ -1,9 +1,9 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #f8f8f8;
+  background-color: #ffffff;
+  color: #11181c;
   font-family: 'Inter', sans-serif;
-
   display: flex;
   justify-content: center;
 }
@@ -12,10 +12,19 @@ body {
   width: 100%;
   max-width: 500px;
   min-height: 100dvh;
-  background: white;
+  background: inherit;
+}
+
+body[data-theme="dark"] {
+  background-color: #151718;
+  color: #ecedee;
+}
+
+body[data-theme="dark"] #root {
+  background: #151718;
 }
 
 ::selection {
-  background-color: #000000c2; 
-  color: #ffffff;           
+  background-color: #000000c2;
+  color: #ffffff;
 }

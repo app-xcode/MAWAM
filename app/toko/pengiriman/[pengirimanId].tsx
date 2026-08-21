@@ -8,7 +8,8 @@ import { useAuth } from "@/utils/auth";
 import { useTheme } from "@/utils/theme";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import ThemedInput from "@/components/themed-input";
 
 const STATUS_PERJALANAN = [
   "Paket diterima",
@@ -150,13 +151,13 @@ export default function UpdateLokasiPengiriman() {
         <ThemedText style={styles.hint}>Ketuk atau geser pin untuk menentukan drop point. Pin ini tidak melacak kurir secara realtime.</ThemedText>
 
         <ThemedText style={styles.label}>Kota</ThemedText>
-        <TextInput value={kota} onChangeText={setKota} style={styles.input} placeholder="SoE" placeholderTextColor="#888" />
+        <ThemedInput value={kota} onChangeText={setKota} style={styles.input} placeholder="SoE" placeholderTextColor="#888" />
         <ThemedText style={styles.label}>Drop point</ThemedText>
-        <TextInput value={dropPoint} onChangeText={setDropPoint} style={styles.input} placeholder="Drop Point SoE" placeholderTextColor="#888" />
+        <ThemedInput value={dropPoint} onChangeText={setDropPoint} style={styles.input} placeholder="Drop Point SoE" placeholderTextColor="#888" />
         <ThemedText style={styles.label}>Status perjalanan</ThemedText>
         <View style={styles.statuses}>{STATUS_PERJALANAN.map((item) => <TouchableOpacity key={item} onPress={() => setStatus(item)} style={[styles.statusOption, status === item && styles.statusSelected]}><ThemedText style={status === item ? styles.statusSelectedText : undefined}>{item}</ThemedText></TouchableOpacity>)}</View>
         <ThemedText style={styles.label}>Catatan</ThemedText>
-        <TextInput value={catatan} onChangeText={setCatatan} style={[styles.input, styles.note]} multiline placeholder="Paket sudah diterima di drop point" placeholderTextColor="#888" />
+        <ThemedInput value={catatan} onChangeText={setCatatan} style={[styles.input, styles.note]} multiline placeholder="Paket sudah diterima di drop point" placeholderTextColor="#888" />
         <TouchableOpacity style={styles.button} onPress={() => void save()} disabled={saving}><ThemedText style={styles.buttonText}>{saving ? "Menyimpan..." : "UPDATE LOKASI"}</ThemedText></TouchableOpacity>
       </ThemedView>
     </ScrollView>
