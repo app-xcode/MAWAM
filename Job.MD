@@ -212,3 +212,43 @@ event webhook bieship
 input resi manual buat jadi pengiriman.
 scroll view di halaman notif
 alert maaf maximal
+cara agar awal load sudah muncul code pembaharuan.
+urutan icon di akun
+ukuran badge penjualan.
+kurir terpilih hilankan
+loading saat buat pesanan
+pengguna tidak ditemukan
+
+Mayar Invoice Response: {
+  statusCode: 200,
+  messages: "success",
+  data: {
+    id: "16767d5c-c127-4da7-b4c7-50902a656871",
+    transactionId: "e10d22ec-32d7-47d4-875f-df1ee1db2ee7",
+    link: "https://xcode-81561.myr.id/invoices/9dycdspkq8",
+    amount: 13000,
+    items: [
+      { quantity: 1, rate: 2000, description: "Bawang Merah Kumpul" },
+      { quantity: 1, rate: 11000, description: "Ongkos Kirim" }
+    ],
+    description: "Pembayaran untuk order PAY-1787328650090",
+    customer: {
+      email: "eedikatahori@gmail.com",
+      name: "Eedik Atahori 1",
+      mobile: "082144733128"
+    },
+    status: "unpaid",
+    subtotal: 13000,
+    invoiceCode: "94EA92A4",
+    expiredAt: "2026-08-22T16:11:00.279Z",
+    createdAt: "2026-08-21T16:11:01.608Z",
+    extraData: {
+      paymentId: "cdbaa8b9-9833-4793-a727-5e23b7a4a608",
+      reference: "PAY-1787328650090",
+      discount: "18000",
+      subtotal: "2000",
+      shipping: "11000",
+      total: "13000"
+    }
+  }
+}

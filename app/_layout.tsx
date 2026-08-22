@@ -27,15 +27,16 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [isDark, setIsDark] = useState(colorScheme === 'dark');
+  // const colorScheme = useColorScheme();
+  // const [isDark, setIsDark] = useState(colorScheme === 'dark');
+  const [isDark, setIsDark] = useState(false);
   const toggleTheme = () => setIsDark(prev => !prev);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    if (colorScheme) {
-      setIsDark(colorScheme === 'dark');
-    }
-  }, [colorScheme]);
+  // useEffect(() => {
+  //   if (colorScheme) {
+  //     setIsDark(colorScheme === 'dark');
+  //   }
+  // }, [colorScheme]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
