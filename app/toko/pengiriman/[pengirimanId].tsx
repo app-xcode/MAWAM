@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import ThemedInput from "@/components/themed-input";
 
+
 const STATUS_PERJALANAN = [
   "Paket diterima",
   "Tiba di drop point",
@@ -51,7 +52,18 @@ export default function UpdateLokasiPengiriman() {
   const [catatan, setCatatan] = useState("");
   const [pointAlamat, setPointAlamat] = useState<string>('');
   const [popup, setPopup] = useState<any>(null);
+  const colorScheme = isDark ? 'dark' : 'light';
+  const accentColor = Colors[colorScheme].accent;
 
+
+  const styles = StyleSheet.create({
+  container: { padding: 12, gap: 12 }, center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  card: { borderRadius: 10, padding: 12 }, title: { fontSize: 16, fontWeight: "700" }, muted: { opacity: .7, marginTop: 4 },
+  label: { fontWeight: "700", marginTop: 14, marginBottom: 6 }, hint: { opacity: .65, fontSize: 12, marginTop: 6 },
+  map: { height: 250, overflow: "hidden", borderRadius: 10 }, input: { borderWidth: 1, borderColor: "#8888", borderRadius: 8, padding: 10, }, note: { minHeight: 88, textAlignVertical: "top" },
+  statuses: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, statusOption: { borderWidth: 1, borderColor: "#8888", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 7 }, statusSelected: { backgroundColor: accentColor, borderColor: accentColor }, statusSelectedText: { color: "#fff", fontWeight: "700" },
+  button: { marginTop: 18, backgroundColor: accentColor, padding: 13, borderRadius: 9, alignItems: "center" }, buttonText: { color: "#fff", fontWeight: "800" },
+});
 
   useEffect(() => {
 
@@ -248,11 +260,4 @@ export default function UpdateLokasiPengiriman() {
   </>;
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 12, gap: 12 }, center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
-  card: { borderRadius: 10, padding: 12 }, title: { fontSize: 16, fontWeight: "700" }, muted: { opacity: .7, marginTop: 4 },
-  label: { fontWeight: "700", marginTop: 14, marginBottom: 6 }, hint: { opacity: .65, fontSize: 12, marginTop: 6 },
-  map: { height: 250, overflow: "hidden", borderRadius: 10 }, input: { borderWidth: 1, borderColor: "#8888", borderRadius: 8, padding: 10, }, note: { minHeight: 88, textAlignVertical: "top" },
-  statuses: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, statusOption: { borderWidth: 1, borderColor: "#8888", borderRadius: 16, paddingHorizontal: 10, paddingVertical: 7 }, statusSelected: { backgroundColor: "#ff4a1c", borderColor: "#ff4a1c" }, statusSelectedText: { color: "#fff", fontWeight: "700" },
-  button: { marginTop: 18, backgroundColor: "#ff4a1c", padding: 13, borderRadius: 9, alignItems: "center" }, buttonText: { color: "#fff", fontWeight: "800" },
-});
+

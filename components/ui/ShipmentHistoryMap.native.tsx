@@ -1,6 +1,8 @@
 import React from "react";
 import { StyleSheet } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
+import { Colors } from '@/constants/theme';
+import { useTheme } from '@/utils/theme';
 
 type LocationHistory = {
   id: string;
@@ -15,6 +17,8 @@ export default function ShipmentHistoryMap({
 }: {
   locations: LocationHistory[];
 }) {
+  const { isDark } = useTheme();
+  const colorScheme = isDark ? 'dark' : 'light';
   const coordinates = locations
     .filter(
       (item) =>
@@ -57,7 +61,7 @@ export default function ShipmentHistoryMap({
       {coordinates.length > 1 && (
         <Polyline
           coordinates={coordinates}
-          strokeColor="#ff4a1c"
+          strokeColor={Colors[colorScheme].accent}
           strokeWidth={3}
         />
       )}

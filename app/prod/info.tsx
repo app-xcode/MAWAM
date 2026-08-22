@@ -180,7 +180,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
                     <TouchableOpacity onPress={() => {
                         router.replace('/cart')
                     }} style={{ position: 'relative', marginRight: 30 }}><Ionicons name="cart-outline" size={24} color={iconColor} />
-                        {cart && cart.length > 0 && <View style={{ position: 'absolute', backgroundColor: '#ff4a1c', width: 15, height: 15, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', right: -3, top: -3, opacity: 0.9 }}>
+                        {cart && cart.length > 0 && <View style={{ position: 'absolute', backgroundColor: Colors[isDark ? 'dark' : 'light'].accent, width: 15, height: 15, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', right: -3, top: -3, opacity: 0.9 }}>
                             <ThemedText style={{ color: '#ffffff', fontSize: cart.length < 99 ? 12 : 6 }} numberOfLines={1}>{cart.length < 99 ? cart.length : '99+'}</ThemedText>
                         </View>}
                     </TouchableOpacity>

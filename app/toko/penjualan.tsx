@@ -165,7 +165,11 @@ export default function ModalScreen() {
     }
 
     function Countdown({ expiredAt }: { expiredAt: string }) {
-        const time = useCountdown(expiredAt, true);
+        let time = " 1 Jam ";
+        if (expiredAt) {
+            time = useCountdown(expiredAt, true);
+        }
+
 
         return (
             <ThemedText style={{ fontWeight: "600" }}>
@@ -323,7 +327,7 @@ export default function ModalScreen() {
                                             <ThemedText style={{ opacity: 0.8 }}>
                                                 Bayar dalam
                                             </ThemedText>
-                                            <Countdown expiredAt={section.payment.expired_at} />
+                                            <Countdown expiredAt={section.payment?.expired_at} />
                                             <ThemedText style={{ opacity: 0.8 }}>
                                                 dengan {section.payment?.payment_method == 'bank_transfer' ? 'Bank ' + (section.payment?.bank) : section.payment?.payment_method}
                                             </ThemedText>
@@ -374,10 +378,10 @@ export default function ModalScreen() {
                                                 Rincian Pesanan
                                             </ThemedText>
                                         </TouchableOpacity>
-                                        {section.pengiriman?.[0]?.id && <TouchableOpacity style={{ borderWidth: 1, borderColor: '#ff4a1c', borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4 }} onPress={() => {
+                                        {section.pengiriman?.[0]?.id && <TouchableOpacity style={{ borderWidth: 1, borderColor: Colors[colorScheme].accent, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4 }} onPress={() => {
                                             router.navigate({ pathname: '/toko/pengiriman/[pengirimanId]', params: { pengirimanId: String(section.pengiriman[0].id) } });
                                         }}>
-                                            <ThemedText style={{ color: '#ff4a1c' }}>Update Drop Point</ThemedText>
+                                            <ThemedText style={{ color: Colors[colorScheme].accent }}>Update Drop Point</ThemedText>
                                         </TouchableOpacity>}
                                         <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: ColorDark }} onPress={() => {
                                             router.navigate({ pathname: 'pesanan/lacak', params: { orderId: section.id } })
@@ -433,7 +437,7 @@ export default function ModalScreen() {
                                     </View>}
                                     {statusConfig[status]?.text == 'Pembatalan' && <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
                                         <TouchableOpacity style={{ borderWidth: 1, borderColor: iconColor, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, }} onPress={() => {
-                                            router.navigate({ pathname: '/toko/pembatalan/'+section.id })
+                                            router.navigate({ pathname: '/toko/pembatalan/' + section.id })
                                         }}>
                                             <ThemedText>
                                                 Rincian Pembatalan

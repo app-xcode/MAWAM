@@ -57,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Keranjang',
           tabBarBadge: totalCart > 0 ? (totalCart > 99 ? '99+' : totalCart) : undefined,
-          tabBarBadgeStyle: { fontSize: 10 },
+          tabBarBadgeStyle: { fontSize: 10,backgroundColor:Colors[colorScheme].accent },
           tabBarIcon: ({ color }) => <Ionicons size={26} name="cart" color={color} />,
         }}
       />

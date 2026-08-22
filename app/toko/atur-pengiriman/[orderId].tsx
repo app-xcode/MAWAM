@@ -95,6 +95,19 @@ export default function AturPengirimanSeller() {
     const [manualResi, setManualResi] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    const styles = StyleSheet.create({
+        container: { padding: 12, gap: 12 },
+        card: { borderRadius: 10, padding: 12 },
+        input: { borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 12 },
+        row: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+        label: { marginVertical: 4, fontWeight: '600' },
+        option: { borderWidth: 1, borderColor: '#8d8d8d', padding: 10, borderRadius: 8 },
+        button: { backgroundColor: `${Colors[scheme].accent}54`, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+        buttonText: { fontWeight: '700' },
+        selectBox: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+        selectItemActive: { borderColor: Colors[scheme].accent, backgroundColor: `${Colors[scheme].accent}22` },
+    });
+
     useEffect(() => {
         if (user === null) {
             router.replace('produk');
@@ -514,7 +527,7 @@ export default function AturPengirimanSeller() {
                     <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Pilih Metode</ThemedText>
                     <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                         <TouchableOpacity
-                            style={[styles.option, mode === 'biteship' ? { borderColor: '#ff491c' } : undefined]}
+                            style={[styles.option, mode === 'biteship' ? styles.selectItemActive : undefined]}
                             onPress={() => {
                                 setMode('biteship');
                                 setUseBuyerChoice(true);
@@ -523,7 +536,7 @@ export default function AturPengirimanSeller() {
                             <ThemedText>Buat via Biteship</ThemedText>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.option, mode === 'manual' ? { borderColor: '#ff491c' } : undefined]}
+                            style={[styles.option, mode === 'manual' ? styles.selectItemActive : undefined]}
                             onPress={() => setMode('manual')}
                         >
                             <ThemedText>Input Resi Manual</ThemedText>
@@ -535,10 +548,10 @@ export default function AturPengirimanSeller() {
                     <ThemedView style={styles.card}>
                         <ThemedText style={{ fontWeight: '700', marginBottom: 8 }}>Buat Pengiriman (Biteship)</ThemedText>
                         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                            <TouchableOpacity style={[styles.option, useBuyerChoice ? { borderColor: '#ff491c' } : undefined]} onPress={() => setUseBuyerChoice(true)}>
+                            <TouchableOpacity style={[styles.option, useBuyerChoice ? styles.selectItemActive : undefined]} onPress={() => setUseBuyerChoice(true)}>
                                 <ThemedText>Gunakan pilihan pembeli</ThemedText>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.option, !useBuyerChoice ? { borderColor: '#ff491c' } : undefined]} onPress={() => setUseBuyerChoice(false)}>
+                            <TouchableOpacity style={[styles.option, !useBuyerChoice ? styles.selectItemActive : undefined]} onPress={() => setUseBuyerChoice(false)}>
                                 <ThemedText>Atur manual</ThemedText>
                             </TouchableOpacity>
                         </View>
@@ -580,7 +593,7 @@ export default function AturPengirimanSeller() {
                                         </TouchableOpacity>
                                         {Boolean(shipping?.biteship_order_id) && (
                                             <TouchableOpacity
-                                                style={[styles.button, { backgroundColor: '#ff4a1c', marginTop: 10 }]}
+                                                style={[styles.button, { backgroundColor: Colors[scheme].accent, marginTop: 10 }]}
                                                 onPress={() => router.push({ pathname: '/toko/pengiriman/[pengirimanId]', params: { pengirimanId: String(shipping.id) } })}
                                             >
                                                 <ThemedText style={styles.buttonText}>Update Perjalanan Paket</ThemedText>
@@ -604,21 +617,12 @@ export default function AturPengirimanSeller() {
                                                 setSelectedCourierName(item.name);
                                             }}
                                         >
-                                            <ThemedText style={selectedBiteshipCourier?.code === item.code ? styles.selectItemTextActive : undefined}>
+                                            <ThemedText>
                                                 {item.name}
                                             </ThemedText>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
-
-                                {selectedBiteshipCourier &&
-                                    <ThemedInput
-                                        value={selectedBiteshipCourier ? `${selectedBiteshipCourier.name} (${selectedBiteshipCourier.code})` : ''}
-                                        style={styles.input}
-                                        editable={false}
-                                        placeholder="Pilih kurir"
-                                        label={<ThemedText style={styles.label}>Kurir terpilih</ThemedText>}
-                                    />}
 
                                 {courierCode !== '' && (
                                     <View style={{ marginTop: 10 }}>
@@ -633,7 +637,7 @@ export default function AturPengirimanSeller() {
                                                     style={[
                                                         styles.option,
                                                         service === item.code
-                                                            ? { borderColor: '#ff491c' }
+                                                            ? styles.selectItemActive
                                                             : undefined,
                                                     ]}
                                                     onPress={() => setService(item.code)}
@@ -646,7 +650,7 @@ export default function AturPengirimanSeller() {
                                 )}
 
                                 <ThemedInput value={String(totalWeight)} style={styles.input} editable={false}
-                                label={<ThemedText style={styles.label}>Berat</ThemedText>}
+                                    label={<ThemedText style={styles.label}>Berat</ThemedText>}
                                 />
                                 <TouchableOpacity style={styles.button} onPress={submitBiteship} disabled={submitting || Boolean(shipping?.biteship_order_id)}>
                                     <ThemedText style={styles.buttonText}>{submitting ? 'Menyimpan...' : biteshipButtonLabel}</ThemedText>
@@ -671,23 +675,15 @@ export default function AturPengirimanSeller() {
                                         setManualCourierName(item.name);
                                     }}
                                 >
-                                    <ThemedText style={selectedManualCourier?.code === item.code ? styles.selectItemTextActive : undefined}>
+                                    <ThemedText>
                                         {item.name}
                                     </ThemedText>
                                 </TouchableOpacity>
                             ))}
                         </View>
 
-                        <ThemedInput
-                            value={selectedManualCourier ? `${selectedManualCourier.name} (${selectedManualCourier.code})` : ''}
-                            style={styles.input}
-                            editable={false}
-                            placeholder="Pilih kurir"
-                            label={<ThemedText style={styles.label}>Kurir terpilih</ThemedText>}
-                        />
-
                         <ThemedInput value={manualResi} onChangeText={setManualResi} style={styles.input} placeholder="1234567890"
-                        label={<ThemedText style={styles.label}>Nomor Resi</ThemedText>}
+                            label={<ThemedText style={styles.label}>Nomor Resi</ThemedText>}
                         />
 
                         <TouchableOpacity style={styles.button} onPress={() => void submitManual()} disabled={submitting}>
@@ -704,16 +700,3 @@ export default function AturPengirimanSeller() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { padding: 12, gap: 12 },
-    card: { borderRadius: 10, padding: 12 },
-    input: { borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 12 },
-    row: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-    label: { marginVertical: 4, fontWeight: '600' },
-    option: { borderWidth: 1, borderColor: '#8d8d8d', padding: 10, borderRadius: 8 },
-    button: { backgroundColor: '#ff330054', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-    buttonText: { fontWeight: '700' },
-    selectBox: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-    selectItemActive: { borderColor: '#ff491c', backgroundColor: '#ff491c22' },
-    selectItemTextActive: { fontWeight: '700' },
-});

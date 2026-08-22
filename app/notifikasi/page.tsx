@@ -8,8 +8,12 @@ import { markAsRead, markAllAsRead, fetchNotifications, getUnreadNotificationCou
 import { Stack, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ScrollView } from 'react-native-gesture-handler';
+import { Colors } from '@/constants/theme';
+import { useTheme } from '@/utils/theme';
 
 export default function NotifikasiPage() {
+  const { isDark } = useTheme();
+const colorScheme = isDark ? 'dark' : 'light';
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -250,7 +254,7 @@ export default function NotifikasiPage() {
               <TouchableOpacity style={styles.itemBody} onPress={() => handlePress(item)}>
                 <View style={styles.titleRow}>
                   {!item.is_read && (
-                    <ThemedView style={styles.badge}>
+                   <ThemedView style={[styles.badge, { backgroundColor: Colors[colorScheme].accent }]}>
                       <ThemedText style={styles.badgeText}>Baru</ThemedText>
                     </ThemedView>
                   )}
@@ -290,7 +294,7 @@ const styles = StyleSheet.create({
   itemTitleUnread: { fontWeight: '800' },
   itemMsg: { opacity: 0.9 },
   itemDate: { opacity: 0.6, fontSize: 12 },
-  badge: { alignSelf: 'flex-start', backgroundColor: '#ff4a1c', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  badge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   deleteButton: { padding: 6, marginTop: 2 },
 });

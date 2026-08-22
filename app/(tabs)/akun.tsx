@@ -386,7 +386,7 @@ export default function Akun() {
         <ThemedText>
           <Ionicons name={icon} size={32} />
         </ThemedText>
-      {total > 0 && <View style={{ position: 'absolute', backgroundColor: '#ff4a1c', width: 15, height: 15, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', right: -3, top: -3, opacity: 0.9 }}>
+      {total > 0 && <View style={{ position: 'absolute', backgroundColor: palette.accent, width: 15, height: 15, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', right: -3, top: -3, opacity: 0.9 }}>
         <ThemedText style={{ color: '#ffffff', fontSize: 12 }} numberOfLines={1}>{total}</ThemedText>
       </View>}
     </View>
@@ -576,7 +576,7 @@ export default function Akun() {
           <TouchableOpacity onPress={handleNotificationPress} style={{ position: 'relative' }}>
             <Ionicons name="notifications-outline" size={25} color={iconColor} />
             {unreadNotificationCount > 0 && (
-              <View style={{ position: 'absolute', top: -4, right: -6, minWidth: 18, height: 18, borderRadius: 999, backgroundColor: '#ff4a1c', alignItems: 'center', justifyContent: 'center', paddingHorizontal: unreadNotificationCount > 99 ? 4 : 5 }}>
+              <View style={{ position: 'absolute', top: -4, right: -6, minWidth: 18, height: 18, borderRadius: 999, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: unreadNotificationCount > 99 ? 4 : 5 }}>
                 <ThemedText style={{ color: '#ffffff', fontSize: unreadNotificationCount > 99 ? 9 : 10, fontWeight: '700' }} numberOfLines={1}>
                   {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
                 </ThemedText>
@@ -597,7 +597,7 @@ export default function Akun() {
             style={{ position: 'relative' }}
           >
             <Ionicons name="cart-outline" size={25} color={iconColor} />
-            {cart && cart.length > 0 && <View style={{ position: 'absolute', backgroundColor: '#ff4a1c', width: 15, height: 15, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', right: -3, top: -3, opacity: 0.9 }}>
+            {cart && cart.length > 0 && <View style={{ position: 'absolute', backgroundColor: palette.accent, width: 15, height: 15, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', right: -3, top: -3, opacity: 0.9 }}>
               <ThemedText style={{ color: '#ffffff', fontSize: cart.length < 99 ? 12 : 6 }} numberOfLines={1}>{cart.length < 99 ? cart.length : '99+'}</ThemedText>
             </View>}
           </TouchableOpacity>

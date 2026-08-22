@@ -23,6 +23,7 @@ export default function ModalScreen() {
     const [pemilik, setPemilik] = useState(false);
 
 
+
     useEffect(() => {
         fetchToko();
     }, []);
@@ -114,14 +115,31 @@ export default function ModalScreen() {
 
     const BtnStatus = ({ text, angka, href }: any) => {
         return (<TouchableOpacity style={{ justifyContent: 'center', alignItems: 'center', padding: 2, }}
-        onPress={()=>{
-           href && router.navigate(href)
-        }}
+            onPress={() => {
+                href && router.navigate(href)
+            }}
         >
-            <View style={{backgroundColor:angka?'#ff491c':undefined, paddingHorizontal:10, borderRadius:'50%'}}>
-            <ThemedText style={{ fontWeight: 600, fontSize: 18, color:angka?'#fff':undefined }}>{angka??0}</ThemedText>
+            <View
+                style={{
+                    backgroundColor: angka ? Colors[colorScheme].accent : undefined,
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
+                <ThemedText
+                    style={{
+                        fontWeight: '600',
+                        fontSize: 16,
+                        color: angka ? '#fff' : undefined,
+                    }}
+                >
+                    {angka > 99 ? '99+' : (angka ?? 0)}
+                </ThemedText>
             </View>
-            <ThemedText style={{ opacity: 0.7, fontSize: 14 }} numberOfLines={1}>{text??'Text'}</ThemedText>
+            <ThemedText style={{ opacity: 0.7, fontSize: 14 }} numberOfLines={1}>{text ?? 'Text'}</ThemedText>
         </TouchableOpacity>)
     }
 
@@ -183,9 +201,9 @@ export default function ModalScreen() {
                                 Status Pesanan
                             </ThemedText>
                             <TouchableOpacity style={{ flexDirection: 'row', gap: 2, opacity: 0.7, alignItems: 'center' }}
-                            onPress={()=>{
-                                router.navigate('toko/penjualan')
-                            }}
+                                onPress={() => {
+                                    router.navigate('toko/penjualan')
+                                }}
                             >
                                 <ThemedText style={{ fontSize: 12 }}>
                                     Riwayat Penjualan
@@ -196,10 +214,10 @@ export default function ModalScreen() {
                         <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'space-evenly', flexWrap: 'wrap', flex: 1, marginVertical: 10 }}>
                             <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'space-evenly', flexWrap: 'wrap', flex: 1 }}>
                                 <BtnStatus text='Perlu Kirim' angka={data?.perlu_kirim} href='toko/penjualan/?tab=Perlu Kirim' />
-                                <BtnStatus text='Pengiriman' angka={data.pengiriman} href='toko/penjualan/?tab=Pengiriman'/>
+                                <BtnStatus text='Pengiriman' angka={data.pengiriman} href='toko/penjualan/?tab=Pengiriman' />
                             </View>
                             <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'space-evenly', flexWrap: 'wrap', flex: 1 }}>
-                                <BtnStatus text='Penilaian' angka={data.penilaian} href='toko/penjualan/?tab=Penilaian'/>
+                                <BtnStatus text='Penilaian' angka={data.penilaian} href='toko/penjualan/?tab=Penilaian' />
                                 <BtnStatus text='Pembatalan' angka={data.pembatalan} href='toko/penjualan/?tab=Pembatalan' />
                             </View>
                         </View>
