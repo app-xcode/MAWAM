@@ -1,0 +1,101 @@
+name: Patch checkout flow
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: "!contains(github.event.head_commit.message, '[skip checkout patch]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch checkout.tsx
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'app/checkout/checkout.tsx';
+          let s = fs.readFileSync(path, 'utf8');
+
+          const importLine = "import { createMawamCheckout } from '@/services/checkout/checkoutService'";
+          if (!s.includes(importLine)) {
+            s = s.replace(
+              "import { supabase } from '@/lib/supabase'",
+              "import { supabase } from '@/lib/supabase'\n" + importLine
+            );
+          }
+
+          const start = s.indexOf('    async function createPayment(amount: number) {');
+          const end = s.indexOf('    type PaymentMethod = {', start);
+          if (start < 0 || end < 0) throw new Error('Checkout function block not found');
+
+          const replacement = `    async function handleCheckout() {
+        if (isCheckingOut) return;
+        if (!pilihKurir) {
+            Alerts('Belum atur pengiriman', 'error');
+            return;
+        }
+        if (!metodeBayar) {
+            Alerts('Belum atur metode pembayaran', 'error');
+            return;
+        }
+        if (!bankBayar) {
+            Alerts('Belum pilih bank', 'error');
+            return;
+        }
+
+        setIsCheckingOut(true);
+        try {
+            const checkout = await createMawamCheckout({
+                cartIds,
+                paymentMethod: metodeBayar,
+                bank: bankBayar,
+                shipping: pengiriman.map((p) => ({
+                    ...p,
+                    origin: p.origin?.kode ?? p.origin ?? null,
+                    destination: p.destination?.kode ?? p.destination ?? null,
+                })),
+            });
+
+            const paymentId = checkout.payment_id;
+            const orders = checkout.orders ?? [];
+
+            for (const order of orders) {
+                try {
+                    await notifyOrderCreatedToBuyer(order.buyer_id, order.id);
+                    await notifyOrderCreatedToSeller(order.seller_id, order.id);
+                } catch (error) {
+                    console.log('Order notification error', error);
+                }
+            }
+
+            router.replace({
+                pathname: "pembayaran/mayar",
+                params: {
+                    paymentId,
+                },
+            });
+        } catch (error: any) {
+            console.log('Checkout RPC error:', error);
+            Alerts(error?.message || 'Gagal buat pesanan', 'error');
+        } finally {
+            setIsCheckingOut(false);
+        }
+    }
+
+`;
+
+          s = s.slice(0, start) + replacement + s.slice(end);
+          fs.writeFileSync(path, s);
+          NODE
+      - name: Commit patched file
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/checkout/checkout.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'refactor checkout to atomic RPC [skip checkout patch]'
+          git push
