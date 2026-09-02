@@ -233,34 +233,96 @@ export default function BatalkanPesananScreen() {
 
   const cancelOrder = async () => {
     if (!order || submitting) return;
-    setSubmitting(true);
-    if (!selectedRefundAccountId) {
-      Alerts("Pilih rekening tujuan refund terlebih dahulu.", "error");
-      setSubmitting(false);
-      return;
-    }
 
-    const { error } = await supabase.rpc("request_order_cancellation", {
-      p_order_id: order.id,
-      p_reason: reason.trim(),
-      p_refund_account_id: selectedRefundAccountId,
-    });
-    setSubmitting(false);
-    if (error) {
-      console.log(error);
-      Alerts("Pembatalan pesanan gagal. Silakan coba lagi.", "error");
-      return;
-    }
+    setSubmitting(true);
 
     try {
-      await notifyCancellationRequestedToBuyer(user.id, order.id);
-      await notifyCancellationRequestedToSeller(order.seller_id, order.id);
-    } catch (notificationError) {
-      console.log('Cancellation notification error', notificationError);
-    }
+      // ============================================================
+      // PESANAN BELUM DIBAYAR
+      // Langsung batalkan tanpa refund dan tanpa persetujuan seller.
+      // ============================================================
+      if (order.status === "pending_payment") {
+        const { error } = await supabase.rpc("cancel_unpaid_order", {
+          p_order_id: order.id,
+          p_reason: reason.trim() || null,
+        });
 
-    Alerts("Permintaan pembatalan berhasil dikirim.", "success");
-    await fetchOrder();
+        if (error) {
+          console.log("Cancel unpaid order error:", error);
+          Alerts(
+            error.message || "Pesanan gagal dibatalkan.",
+            "error"
+          );
+          return;
+        }
+
+        Alerts("Pesanan berhasil dibatalkan.", "success");
+
+        router.replace({
+          pathname: "/pesanan/rincian/",
+          params: { orderId: order.id },
+        });
+
+        return;
+      }
+
+      // ============================================================
+      // PESANAN SUDAH DIBAYAR
+      // Tetap menggunakan flow refund yang sudah ada.
+      // ============================================================
+      if (!selectedRefundAccountId) {
+        Alerts("Pilih rekening tujuan refund terlebih dahulu.", "error");
+        return;
+      }
+
+      const { error } = await supabase.rpc(
+        "request_order_cancellation",
+        {
+          p_order_id: order.id,
+          p_reason: reason.trim(),
+          p_refund_account_id: selectedRefundAccountId,
+        }
+      );
+
+      if (error) {
+        console.log(error);
+        Alerts(
+          "Pembatalan pesanan gagal. Silakan coba lagi.",
+          "error"
+        );
+        return;
+      }
+
+      try {
+        if (user?.id) {
+          await notifyCancellationRequestedToBuyer(
+            user.id,
+            order.id
+          );
+        }
+
+        if (order.seller_id) {
+          await notifyCancellationRequestedToSeller(
+            order.seller_id,
+            order.id
+          );
+        }
+      } catch (notificationError) {
+        console.log(
+          "Cancellation notification error",
+          notificationError
+        );
+      }
+
+      Alerts(
+        "Permintaan pembatalan berhasil dikirim.",
+        "success"
+      );
+
+      await fetchOrder();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const cancelCancellationRequest = async () => {
@@ -307,9 +369,14 @@ export default function BatalkanPesananScreen() {
     selectedReason !== null &&
     (selectedReason !== "other" || Boolean(reason.trim()));
   const askConfirmation = () => {
-    if (selectedReason === "other" && !reason.trim()) {
-      Alerts("Tulis alasan pembatalan terlebih dahulu.", "info");
-      return;
+    if (!isUnpaidOrder) {
+      if (selectedReason === "other" && !reason.trim()) {
+        Alerts(
+          "Tulis alasan pembatalan terlebih dahulu.",
+          "info"
+        );
+        return;
+      }
     }
 
     setShowConfirmation(true);
@@ -323,8 +390,19 @@ export default function BatalkanPesananScreen() {
           <View style={styles.modalIcon}>
             <Ionicons name="alert-circle-outline" size={28} color={ColorDark} />
           </View>
-          <ThemedText style={styles.modalTitle}>Kirim permintaan pembatalan?</ThemedText>
-          <ThemedText style={styles.modalDescription}>Jika pembayaran sudah lebih dari satu jam, permintaan akan menunggu persetujuan penjual. Setelah disetujui, admin memproses refund manual ke rekening Anda.</ThemedText>
+
+          <ThemedText style={styles.modalTitle}>
+            {isUnpaidOrder
+              ? "Batalkan pesanan?"
+              : "Kirim permintaan pembatalan?"}
+          </ThemedText>
+
+          <ThemedText style={styles.modalDescription}>
+            {isUnpaidOrder
+              ? "Pesanan ini belum dibayar dan akan langsung dibatalkan. Anda tidak perlu melakukan pembayaran untuk pesanan ini."
+              : "Jika pembayaran sudah lebih dari satu jam, permintaan akan menunggu persetujuan penjual. Setelah disetujui, admin memproses refund manual ke rekening Anda."}
+          </ThemedText>
+
           <View style={styles.modalActions}>
             <TouchableOpacity onPress={() => setShowConfirmation(false)} style={styles.modalBackButton}>
               <ThemedText style={styles.backText}>Kembali</ThemedText>
@@ -336,7 +414,11 @@ export default function BatalkanPesananScreen() {
               }}
               style={styles.modalCancelButton}
             >
-              <ThemedText style={styles.cancelText}>Kirim Permintaan</ThemedText>
+              <ThemedText style={styles.cancelText}>
+                {isUnpaidOrder
+                  ? "Batalkan Pesanan"
+                  : "Kirim Permintaan"}
+              </ThemedText>
             </TouchableOpacity>
           </View>
         </ThemedView>
@@ -470,15 +552,35 @@ export default function BatalkanPesananScreen() {
           </View>
         </View>}
       </ThemedView>}
-      {!isActiveCancellation && !isPackedOrder && <ThemedView style={styles.statusCard}>
-        <Ionicons name="information-circle-outline" size={24} color={Colors[scheme].icon} />
-        <View style={styles.flex}><ThemedText style={styles.bold}>Pembatalan refund belum tersedia</ThemedText><ThemedText style={styles.desc}>Saat ini pengajuan pembatalan manual hanya tersedia untuk pesanan berstatus Dikemas.</ThemedText></View>
-      </ThemedView>}
+      {!isActiveCancellation &&
+        !isUnpaidOrder &&
+        !isPackedOrder && (
+          <ThemedView style={styles.statusCard}>
+            <Ionicons
+              name="information-circle-outline"
+              size={24}
+              color={Colors[scheme].icon}
+            />
+            <View style={styles.flex}>
+              <ThemedText style={styles.bold}>
+                Pembatalan refund belum tersedia
+              </ThemedText>
+              <ThemedText style={styles.desc}>
+                Saat ini pengajuan pembatalan manual hanya tersedia
+                untuk pesanan berstatus Dikemas.
+              </ThemedText>
+            </View>
+          </ThemedView>
+        )}
     </ScrollView>
     <ThemedView style={styles.footer}>
       <TouchableOpacity disabled={submitting} onPress={() => router.back()} style={[styles.back, isActiveCancellation && { flex: 1 }]}><ThemedText style={styles.backText}>{isActiveCancellation ? "Kembali ke Pesanan" : "Kembali"}</ThemedText></TouchableOpacity>
       {!isActiveCancellation && <TouchableOpacity disabled={submitting || !canCancel} onPress={askConfirmation} style={[styles.cancel, (submitting || !canCancel) && styles.disabled]}>
-        {submitting ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.cancelText}>Ajukan Pembatalan</ThemedText>}
+        {submitting ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.cancelText}>
+          {isUnpaidOrder
+            ? "Batalkan Pesanan"
+            : "Ajukan Pembatalan"}
+        </ThemedText>}
       </TouchableOpacity>}
     </ThemedView>
   </>;
