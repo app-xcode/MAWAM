@@ -6,7 +6,6 @@ export async function createNotification(payload: NotificationPayload) {
   const { userId, type, title, message, data, dedupeKey } = payload;
 
   try {
-    // insert into DB; avoid duplicates if dedupeKey provided
     const insertPayload: any = {
       user_id: userId,
       type,
@@ -21,30 +20,49 @@ export async function createNotification(payload: NotificationPayload) {
       .insert(insertPayload)
       .select();
 
-    // Unique index pada dedupe_key akan menolak duplikat; itu berarti notifikasi ini sudah pernah dibuat.
+    let notificationRow = Array.isArray(inserted) && inserted.length ? inserted[0] : null;
+
+    // Server-side cancellation flows may already have created the row.
+    // In that case, reuse it so a legitimate client-side trigger can still
+    // attempt its normal FCM delivery without creating a duplicate row.
     if (insertError) {
       if (insertError.code !== '23505') {
         console.error('createNotification insert error', insertError);
+        return null;
       }
-      return null;
+
+      if (!dedupeKey) {
+        return null;
+      }
+
+      const { data: existing, error: existingError } = await supabase
+        .from('notifikasi')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('dedupe_key', dedupeKey)
+        .maybeSingle();
+
+      if (existingError || !existing) {
+        if (existingError) console.error('createNotification existing row error', existingError);
+        return null;
+      }
+
+      notificationRow = existing;
     }
 
-    const notificationRow = Array.isArray(inserted) && inserted.length ? inserted[0] : null;
     if (!notificationRow) {
       return null;
     }
 
-    // fetch active tokens only after DB row is created successfully
     const tokens = await listActiveTokens(userId);
 
     if (tokens && tokens.length) {
-      // invoke Supabase Edge Function 'send-fcm' (keeps Firebase credentials server-side)
       try {
         await supabase.functions.invoke('send-fcm', {
           body: JSON.stringify({
             tokens,
             notification: { title, body: message },
-            data: { ...data, notification_id: notificationRow?.id },
+            data: { ...data, notification_id: notificationRow.id },
           }),
         });
       } catch (err) {
