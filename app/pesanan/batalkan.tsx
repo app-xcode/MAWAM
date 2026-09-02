@@ -103,7 +103,7 @@ export default function BatalkanPesananScreen() {
   const fetchOrder = useCallback(async () => {
     if (!orderId) return;
     const { data, error } = await supabase.from("mawam_orders").select(`
-      id, invoice, status, total, cancellation_status,
+      id, invoice, seller_id, status, total, cancellation_status,
       mawam_profile:seller_id(nama, mawam_toko(nama_toko)),
       mawam_payments:payment_id(paid_at),
       mawam_order_cancellations(id, seller_decision, seller_rejection_reason, refund_status, refund_proof_path),
@@ -292,8 +292,20 @@ export default function BatalkanPesananScreen() {
   const storeName = order.mawam_profile?.mawam_toko?.[0]?.nama_toko || order.mawam_profile?.nama || "Penjual";
   const cancellation = order.mawam_order_cancellations?.[0];
   const isActiveCancellation = Boolean(cancellation && cancellation.seller_decision !== "cancelled");
-  const isPackedOrder = ["paid", "processed", "settlement"].includes(order.status);
-  const canCancel = isPackedOrder && !isActiveCancellation && Boolean(selectedRefundAccountId) && selectedReason !== null && (selectedReason !== "other" || Boolean(reason.trim()));
+  const isUnpaidOrder = order.status === "pending_payment";
+  const isPackedOrder = [
+    "paid",
+    "processed",
+    "settlement",
+  ].includes(order.status);
+
+  const canCancel = isUnpaidOrder
+    ? !isActiveCancellation
+    : isPackedOrder &&
+    !isActiveCancellation &&
+    Boolean(selectedRefundAccountId) &&
+    selectedReason !== null &&
+    (selectedReason !== "other" || Boolean(reason.trim()));
   const askConfirmation = () => {
     if (selectedReason === "other" && !reason.trim()) {
       Alerts("Tulis alasan pembatalan terlebih dahulu.", "info");
@@ -475,7 +487,7 @@ export default function BatalkanPesananScreen() {
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   container: { padding: 12, gap: 10 }, card: { borderRadius: 10, padding: 14, gap: 10 },
-  heading: { flexDirection: "row", gap: 12, alignItems:'flex-start'}, flex: { flex: 1 }, icon: { backgroundColor: ColorDark, padding: 9, borderRadius: 24 },
+  heading: { flexDirection: "row", gap: 12, alignItems: 'flex-start' }, flex: { flex: 1 }, icon: { backgroundColor: ColorDark, padding: 9, borderRadius: 24 },
   title: { fontSize: 17, fontWeight: "700" }, bold: { fontWeight: "700" }, desc: { opacity: 0.72, lineHeight: 20 },
   notice: { flexDirection: "row", gap: 8, padding: 10, borderRadius: 8, backgroundColor: "#8888881A" }, noticeText: { flex: 1, opacity: 0.8, lineHeight: 19 },
   statusCard: { borderRadius: 10, padding: 14, gap: 10, flexDirection: "row", alignItems: "flex-start" },
