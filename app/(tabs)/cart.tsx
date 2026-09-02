@@ -28,6 +28,7 @@ export default function DetailCart() {
   const [pendingRemove, setPendingRemove] = useState<any | null>(null)
   const [removing, setRemoving] = useState(false)
   const [updatingCartItemId, setUpdatingCartItemId] = useState<string | null>(null)
+  const [infoModal, setInfoModal] = useState<{ title: string; message: string; variant?: 'default' | 'destructive' | 'success' | 'warning' } | null>(null)
 
   const confirmRemove = async () => {
     if (!pendingRemove) return
@@ -145,6 +146,7 @@ export default function DetailCart() {
   return (
     <React.Fragment>
       <ConfirmModal visible={Boolean(pendingRemove)} title="Hapus produk?" message="Produk ini akan dihapus dari keranjang." confirmText="Hapus" variant="destructive" loading={removing} onCancel={() => setPendingRemove(null)} onConfirm={confirmRemove} />
+      <ConfirmModal visible={Boolean(infoModal)} title={infoModal?.title ?? ''} message={infoModal?.message ?? ''} confirmText="Mengerti" cancelText="Tutup" variant={infoModal?.variant ?? 'default'} onCancel={() => setInfoModal(null)} onConfirm={() => setInfoModal(null)} />
       <ThemedView style={{
         justifyContent: 'center',
         paddingVertical: 10
@@ -321,7 +323,11 @@ export default function DetailCart() {
                               );
                             } catch (error) {
                               console.log(error)
-                              alert('Gagal mengubah jumlah produk')
+                              setInfoModal({
+                                title: 'Gagal mengubah jumlah',
+                                message: 'Jumlah produk belum berhasil diperbarui. Coba lagi sebentar.',
+                                variant: 'warning',
+                              })
                             } finally {
                               setUpdatingCartItemId(null)
                             }
@@ -336,7 +342,11 @@ export default function DetailCart() {
                           onPress={async () => {
                             if (isUpdatingQty) return
                             if (item.jumlah >= 10) {
-                              alert('Maaf, maksimal 10 produk')
+                              setInfoModal({
+                                title: 'Jumlah maksimal',
+                                message: 'Maaf, maksimal 10 produk untuk item ini.',
+                                variant: 'warning',
+                              })
                               return
                             }
                             setUpdatingCartItemId(item.cart_id)
@@ -351,7 +361,11 @@ export default function DetailCart() {
                               );
                             } catch (error) {
                               console.log(error)
-                              alert('Gagal mengubah jumlah produk')
+                              setInfoModal({
+                                title: 'Gagal mengubah jumlah',
+                                message: 'Jumlah produk belum berhasil diperbarui. Coba lagi sebentar.',
+                                variant: 'warning',
+                              })
                             } finally {
                               setUpdatingCartItemId(null)
                             }
