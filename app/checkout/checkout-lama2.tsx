@@ -22,7 +22,6 @@ import React, { useEffect, useState } from 'react'
 import { ActivityIndicator, TouchableOpacity, SectionList, StyleSheet, View } from 'react-native'
 import { FlatList } from 'react-native-gesture-handler'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
-import { createMawamCheckout } from '@/services/checkout/checkoutService'
 const ColorDark = Colors['light'].tint;
 const ColorLight = Colors['dark'].tint;
 
@@ -386,73 +385,201 @@ export default function ModalScreen() {
         )
     }
 
-async function handleCheckout() {
-    if (isCheckingOut) return;
+    async function createPayment(amount: number) {
+        const { data: auth } = await supabase.auth.getUser();
 
-    if (!pilihKurir) {
-        Alerts('Belum atur pengiriman', 'error');
-        return;
+        if (!auth.user) throw new Error("User belum login");
+
+        const reference = `PAY-${Date.now()}`;
+
+        const { data, error } = await supabase
+            .from("mawam_payments")
+            .insert({
+                buyer_id: auth.user.id,
+                reference,
+                amount,
+                status: "pending_payment",
+                payment_method: metodeBayar ?? 'qris_dinamis',
+                bank: bankBayar ?? 'bri',
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return data;
     }
 
-    if (!metodeBayar) {
-        Alerts('Belum atur metode pembayaran', 'error');
-        return;
-    }
+    async function createOrders(paymentId: string) {
+        const { data: auth } = await supabase.auth.getUser();
 
-    if (!bankBayar) {
-        Alerts('Belum pilih bank', 'error');
-        return;
-    }
+        if (!auth.user) throw new Error("User belum login");
 
-    setIsCheckingOut(true);
+        const orders = [];
 
-    try {
-        const checkout = await createMawamCheckout({
-            cartIds,
-            paymentMethod: metodeBayar,
-            bank: bankBayar,
-            shipping: pengiriman.map((p) => ({
-                ...p,
-                origin: p.origin?.kode ?? p.origin ?? null,
-                destination: p.destination?.kode ?? p.destination ?? null,
-            })),
-        });
-
-        const paymentId = checkout.payment_id;
-        const orders = checkout.orders ?? [];
-
-        for (const order of orders) {
-            try {
-                await notifyOrderCreatedToBuyer(
-                    order.buyer_id,
-                    order.id
-                );
-
-                await notifyOrderCreatedToSeller(
-                    order.seller_id,
-                    order.id
-                );
-            } catch (error) {
-                console.log('Order notification error', error);
+        for (const toko of dataCart) {
+            const invoice = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            if (toko.subtotal == undefined) {
+                toko.subtotal = 0;
             }
+            if (toko.discount == undefined) {
+                toko.discount = 0;
+            }
+            if (toko.shipping == undefined) {
+                toko.shipping = 0;
+            }
+            if (toko.total == undefined) {
+                toko.total = 0;
+            }
+            toko?.data?.forEach((item: any) => {
+                const harga_akhir = item.discount ? (item.harga - (item.harga * (item.discount / 100))) : item.harga;
+                toko.subtotal += item.jumlah * harga_akhir;
+            });
+            toko.total = toko.subtotal + toko.shipping;
+            const { data: order, error } = await supabase
+                .from("mawam_orders")
+                .insert({
+                    payment_id: paymentId,
+
+                    invoice,
+
+                    buyer_id: auth.user.id,
+                    seller_id: toko.title.user_id,
+                    toko_id: toko.title.id,
+
+                    subtotal: toko.subtotal,
+                    discount: toko.discount,
+                    shipping: toko.shipping,
+                    total: toko.total,
+                    seller_note: toko.seller_note ?? null,
+                    status: "pending_payment",
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            orders.push({
+                ...order,
+                items: toko.data,
+                pengiriman: toko.pengiriman,
+            });
         }
 
-        router.replace({
-            pathname: 'pembayaran/mayar',
-            params: {
-                paymentId,
-            },
-        });
-    } catch (error: any) {
-        console.log('Checkout RPC error:', error);
-        Alerts(
-            error?.message || 'Gagal buat pesanan',
-            'error'
-        );
-    } finally {
-        setIsCheckingOut(false);
+        return orders;
     }
-}
+
+    async function createOrderItems(orders: any[]) {
+        for (const order of orders) {
+            const items = order.items.map((item: any) => ({
+                order_id: order.id,
+                produk_id: item.id,
+                qty: item.jumlah,
+                price: item.harga,
+                discount: item.discount
+                    ? (item.jumlah * item.harga) -
+                    (item.jumlah * (item.harga - (item.harga * (item.discount / 100))))
+                    : 0,
+                subtotal: item.discount
+                    ? item.jumlah * (item.harga - (item.harga * (item.discount / 100)))
+                    : item.jumlah * item.harga,
+            }));
+
+            const { error } = await supabase
+                .from("mawam_order_items")
+                .insert(items);
+
+            if (error) throw error;
+        }
+        return true;
+    }
+    async function createPengiriman(orders: any[]) {
+        for (const order of orders) {
+            const p = order.pengiriman;
+            const kirim = {
+                order_id: order.id,
+                courier_code: p.courier_code,
+                courier_name: p.courier_name,
+                service: p.service,
+                shipping_cost: p.shipping_cost,
+                estimated_days: p.estimated_days,
+                tracking_number: `Resi-Test-${Date.now()}`,
+                status: "diproses",
+                type: p.type,
+                weight: p.weight,
+                origin: p.origin?.kode ?? p.origin,
+                destination: p.destination?.kode ?? p.destination,
+                penerima: p.penerima,
+                telepon_penerima: p.telepon_penerima,
+                alamat_penerima: p.alamat_penerima,
+            };
+
+            const { error } = await supabase
+                .from("mawam_pengiriman")
+                .insert(kirim);
+
+            if (error) throw error;
+        }
+        return true;
+    }
+
+    async function deleteCart(cartIds: string[]) {
+        const { error } = await supabase
+            .from("mawam_cart")
+            .delete()
+            .in("id", cartIds);
+
+        if (error) throw error;
+        return true;
+    }
+
+    async function handleCheckout() {
+        if (isCheckingOut) return;
+        if (!pilihKurir) {
+            Alerts('Belum atur pengiriman', 'error');
+            return;
+        }
+        if (!metodeBayar) {
+            Alerts('Belum atur metode pembayaran', 'error');
+            return;
+        }
+        if (!bankBayar) {
+            Alerts('Belum pilih bank', 'error');
+            return;
+        }
+
+        setIsCheckingOut(true);
+        try {
+            const payment = await createPayment(total);
+            const orders = await createOrders(payment.id);
+            await createOrderItems(orders);
+            await createPengiriman(orders);
+
+            if (orders.length > 0) {
+                for (const order of orders) {
+                    try {
+                        await notifyOrderCreatedToBuyer(order.buyer_id, order.id);
+                        await notifyOrderCreatedToSeller(order.seller_id, order.id);
+                    } catch (error) {
+                        console.log('Order notification error', error);
+                    }
+                }
+            }
+
+            await deleteCart(cartIds);
+            router.replace({
+                pathname: "pembayaran/mayar",
+                params: {
+                    paymentId: payment.id
+                },
+            });
+        } catch (error) {
+            console.log(error);
+            Alerts('Gagal buat pesanan', 'error');
+        } finally {
+            setIsCheckingOut(false);
+        }
+    }
     type PaymentMethod = {
         id: string;
         type: string;
