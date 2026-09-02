@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text'
 import { ThemedView } from '@/components/themed-view'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { ImageLoad } from '@/components/ui/Imageload'
 import Alerts from '@/constants/Alerts'
 import { formatWaktu, useCountdown } from '@/constants/countDown'
@@ -239,23 +240,17 @@ export default function ModalScreen() {
     return (
         <React.Fragment>
             <Stack.Screen options={{ title: 'Pesanan Saya', }} />
-            <Modal transparent visible={Boolean(completeOrderId)} animationType="fade" onRequestClose={() => !completingOrder && setCompleteOrderId(null)}>
-                <View style={styles.modalOverlay}>
-                    <ThemedView style={styles.modalCard}>
-                        <Ionicons name="checkmark-circle-outline" size={30} color={iconColor} />
-                        <ThemedText style={styles.modalTitle}>Pesanan sudah diterima?</ThemedText>
-                        <ThemedText style={styles.modalDescription}>Pastikan produk telah Anda terima dengan baik. Setelah dikonfirmasi, pesanan akan ditandai selesai.</ThemedText>
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity disabled={completingOrder} onPress={() => setCompleteOrderId(null)} style={styles.modalBackButton}>
-                                <ThemedText style={styles.modalBackText}>Kembali</ThemedText>
-                            </TouchableOpacity>
-                            <TouchableOpacity disabled={completingOrder} onPress={completeOrder} style={[styles.modalConfirmButton, completingOrder && styles.disabled]}>
-                                {completingOrder ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Ya, Pesanan Selesai</ThemedText>}
-                            </TouchableOpacity>
-                        </View>
-                    </ThemedView>
-                </View>
-            </Modal>
+            <ConfirmModal
+                visible={Boolean(completeOrderId)}
+                title="Pesanan sudah diterima?"
+                message="Pastikan produk telah Anda terima dengan baik. Setelah dikonfirmasi, pesanan akan ditandai selesai."
+                confirmText="Ya, Pesanan Selesai"
+                cancelText="Kembali"
+                variant="success"
+                loading={completingOrder}
+                onCancel={() => setCompleteOrderId(null)}
+                onConfirm={completeOrder}
+            />
             <View>
                 <ScrollView
                     ref={scrollRef}

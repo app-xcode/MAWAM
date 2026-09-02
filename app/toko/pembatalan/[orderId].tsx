@@ -1,5 +1,7 @@
+import ThemedInput from '@/components/themed-input'
 import { ThemedText } from '@/components/themed-text'
 import { ThemedView } from '@/components/themed-view'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import Alerts from '@/constants/Alerts'
 import { rupiah } from '@/constants/rupiah'
 import { Colors } from '@/constants/theme'
@@ -173,32 +175,44 @@ export default function SellerCancellationDetail() {
   return (
     <React.Fragment>
       <Stack.Screen options={{ title: 'Rincian Pembatalan' }} />
-      <Modal transparent visible={showRejectModal} animationType="fade" onRequestClose={() => setShowRejectModal(false)}>
-        <View style={styles.modalOverlay}>
-          <ThemedView style={styles.modalCard}>
-            <Ionicons name="close-circle-outline" size={30} color={ColorDark} />
-            <ThemedText style={styles.modalTitle}>Alasan penolakan</ThemedText>
-            <TextInput value={rejectReason} onChangeText={setRejectReason} placeholder="Tulis alasan kenapa ditolak" multiline style={[styles.input, { color: Colors[scheme].text }]} />
-            <View style={styles.modalActions}>
-              <TouchableOpacity disabled={processing} onPress={() => setShowRejectModal(false)} style={styles.modalBackButton}><ThemedText style={styles.modalBackText}>Batal</ThemedText></TouchableOpacity>
-              <TouchableOpacity disabled={processing} onPress={rejectCancellation} style={[styles.modalConfirmButton, processing && styles.disabled]}>{processing ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Tolak</ThemedText>}</TouchableOpacity>
-            </View>
-          </ThemedView>
-        </View>
-      </Modal>
-      <Modal transparent visible={showApproveModal} animationType="fade" onRequestClose={() => setShowApproveModal(false)}>
-        <View style={styles.modalOverlay}>
-          <ThemedView style={styles.modalCard}>
-            <Ionicons name="checkmark-circle-outline" size={30} color={ColorDark} />
-            <ThemedText style={styles.modalTitle}>Setujui pembatalan?</ThemedText>
-            <ThemedText style={styles.modalDescription}>Status pesanan akan diubah menjadi dibatalkan setelah persetujuan Anda. Pembeli akan menerima proses pembatalan sesuai ketentuan yang berlaku.</ThemedText>
-            <View style={styles.modalActions}>
-              <TouchableOpacity disabled={processing} onPress={() => setShowApproveModal(false)} style={styles.modalBackButton}><ThemedText style={styles.modalBackText}>Batal</ThemedText></TouchableOpacity>
-              <TouchableOpacity disabled={processing} onPress={() => { setShowApproveModal(false); approveCancellation(); }} style={[styles.modalConfirmButton, processing && styles.disabled]}>{processing ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Setujui</ThemedText>}</TouchableOpacity>
-            </View>
-          </ThemedView>
-        </View>
-      </Modal>
+      <ConfirmModal
+        visible={showRejectModal}
+        title="Alasan penolakan"
+        confirmText="Tolak"
+        cancelText="Batal"
+        variant="destructive"
+        loading={processing}
+        onCancel={() => setShowRejectModal(false)}
+        onConfirm={rejectCancellation}
+      >
+        <ThemedInput
+          value={rejectReason}
+          onChangeText={setRejectReason}
+          placeholder="Tulis alasan kenapa ditolak"
+          multiline
+          textAlignVertical="top"
+          style={[
+            styles.input,
+            {
+              color: Colors[scheme].text,
+            },
+          ]}
+        />
+      </ConfirmModal>
+      <ConfirmModal
+        visible={showApproveModal}
+        title="Setujui pembatalan?"
+        message="Status pesanan akan diubah menjadi dibatalkan setelah persetujuan Anda. Pembeli akan menerima proses pembatalan sesuai ketentuan yang berlaku."
+        confirmText="Setujui"
+        cancelText="Batal"
+        variant="success"
+        loading={processing}
+        onCancel={() => setShowApproveModal(false)}
+        onConfirm={async () => {
+          setShowApproveModal(false);
+          await approveCancellation();
+        }}
+      />
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12 }}>
         <ThemedView style={{ borderRadius: 8, padding: 12, marginBottom: 8 }}>

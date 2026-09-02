@@ -17,6 +17,7 @@ import { formatService } from "@/constants/opsiPengiriman";
 import { copyText } from "@/constants/copyText";
 import { nohptowa } from "@/constants/isNoHp";
 import { addToCart } from "@/constants/kelolaCart";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 const ColorDark = Colors["light"].tint;
 const ColorLight = Colors["dark"].tint;
 
@@ -191,40 +192,33 @@ export default function ModalScreen() {
   return (
     <React.Fragment>
       <Stack.Screen options={{ title: data?.status == 'cancelled' ? "Rincian Pembatalan" : "Rincian Pesanan" }} />
-      <Modal transparent visible={showCancelRequestConfirmation} animationType="fade" onRequestClose={() => setShowCancelRequestConfirmation(false)}>
-        <View style={styles.modalOverlay}>
-          <ThemedView style={styles.modalCard}>
-            <Ionicons name="close-circle-outline" size={30} color={ColorDark} />
-            <ThemedText style={styles.modalTitle}>Batalkan pengajuan?</ThemedText>
-            <ThemedText style={styles.modalDescription}>Penjual tidak akan memproses pembatalan ini. Anda dapat mengajukan pembatalan kembali bila diperlukan.</ThemedText>
-            <View style={styles.modalActions}>
-              <TouchableOpacity disabled={cancellingRequest} onPress={() => setShowCancelRequestConfirmation(false)} style={styles.modalBackButton}>
-                <ThemedText style={styles.modalBackText}>Kembali</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity disabled={cancellingRequest} onPress={cancelCancellationRequest} style={[styles.modalConfirmButton, cancellingRequest && styles.disabled]}>
-                {cancellingRequest ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Ya, Batalkan</ThemedText>}
-              </TouchableOpacity>
-            </View>
-          </ThemedView>
-        </View>
-      </Modal>
-      <Modal transparent visible={showCompleteConfirmation} animationType="fade" onRequestClose={() => !completingOrder && setShowCompleteConfirmation(false)}>
-        <View style={styles.modalOverlay}>
-          <ThemedView style={styles.modalCard}>
-            <Ionicons name="checkmark-circle-outline" size={30} color={ColorDark} />
-            <ThemedText style={styles.modalTitle}>Pesanan sudah diterima?</ThemedText>
-            <ThemedText style={styles.modalDescription}>Pastikan produk telah Anda terima dengan baik. Setelah dikonfirmasi, pesanan akan ditandai selesai.</ThemedText>
-            <View style={styles.modalActions}>
-              <TouchableOpacity disabled={completingOrder} onPress={() => setShowCompleteConfirmation(false)} style={styles.modalBackButton}>
-                <ThemedText style={styles.modalBackText}>Kembali</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity disabled={completingOrder} onPress={completeOrder} style={[styles.modalConfirmButton, completingOrder && styles.disabled]}>
-                {completingOrder ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Ya, Pesanan Selesai</ThemedText>}
-              </TouchableOpacity>
-            </View>
-          </ThemedView>
-        </View>
-      </Modal>
+      <ConfirmModal
+        visible={showCancelRequestConfirmation}
+        title="Batalkan pengajuan?"
+        message="Penjual tidak akan memproses pembatalan ini. Anda dapat mengajukan pembatalan kembali bila diperlukan."
+        confirmText="Ya, Batalkan"
+        cancelText="Kembali"
+        variant="warning"
+        loading={cancellingRequest}
+        onCancel={() =>
+          setShowCancelRequestConfirmation(false)
+        }
+        onConfirm={cancelCancellationRequest}
+      />
+
+      <ConfirmModal
+        visible={showCompleteConfirmation}
+        title="Pesanan sudah diterima?"
+        message="Pastikan produk telah Anda terima dengan baik. Setelah dikonfirmasi, pesanan akan ditandai selesai."
+        confirmText="Ya, Pesanan Selesai"
+        cancelText="Kembali"
+        variant="success"
+        loading={completingOrder}
+        onCancel={() =>
+          setShowCompleteConfirmation(false)
+        }
+        onConfirm={completeOrder}
+      />
       <ScrollView style={{ flex: 1 }}>
         <View style={styles.container}>
           <ThemedView
@@ -646,13 +640,5 @@ const styles = StyleSheet.create({
     color: ColorLight,
     fontWeight: "600",
   },
-  modalOverlay: { flex: 1, backgroundColor: "#00000080", alignItems: "center", justifyContent: "center", padding: 24 },
-  modalCard: { width: "100%", maxWidth: 420, borderRadius: 14, padding: 20, alignItems: "center", gap: 12 },
-  modalTitle: { fontSize: 18, fontWeight: "700", textAlign: "center" },
-  modalDescription: { opacity: 0.72, lineHeight: 20, textAlign: "center" },
-  modalActions: { flexDirection: "row", gap: 10, width: "100%", marginTop: 6 },
-  modalBackButton: { flex: 1, borderColor: ColorDark, borderWidth: 1, borderRadius: 9, paddingVertical: 12, alignItems: "center" },
-  modalBackText: { color: ColorDark, fontWeight: "700" },
-  modalConfirmButton: { flex: 1, backgroundColor: ColorDark, borderRadius: 9, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   disabled: { opacity: 0.55 },
 });

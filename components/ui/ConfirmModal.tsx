@@ -9,13 +9,14 @@ import { useTheme } from '@/utils/theme';
 type ConfirmModalProps = {
   visible: boolean;
   title: string;
-  message: string;
+  message?: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'default' | 'destructive' | 'success' | 'warning';
+  variant?: "default" | "destructive" | "success" | "warning";
   loading?: boolean;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
+  children?: React.ReactNode;
 };
 
 export default function ConfirmModal({

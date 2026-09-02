@@ -62,8 +62,44 @@ export default function MayarScreen() {
 
                     return;
                 }
-                if(data){
+                if (data) {
                     setdata(data)
+                }
+
+                // ==========================================
+                // CEK STATUS PESANAN
+                // ==========================================
+                const { data: orders, error: ordersError } = await supabase
+                    .from("mawam_orders")
+                    .select("id, status")
+                    .eq("payment_id", paymentId);
+
+                if (ordersError) {
+                    throw new Error("Gagal memeriksa status pesanan.");
+                }
+
+                if (!orders?.length) {
+                    throw new Error("Pesanan tidak ditemukan.");
+                }
+
+                const hasCancelledOrder = orders.some(
+                    (order) => order.status === "cancelled"
+                );
+
+                if (hasCancelledOrder) {
+                    throw new Error(
+                        "Pesanan sudah dibatalkan dan tidak dapat dibayar."
+                    );
+                }
+
+                const allPendingPayment = orders.every(
+                    (order) => order.status === "pending_payment"
+                );
+
+                if (!allPendingPayment) {
+                    throw new Error(
+                        "Pesanan sudah tidak dapat dibayar."
+                    );
                 }
 
                 // ==========================================
@@ -278,7 +314,7 @@ export default function MayarScreen() {
 
                             <ThemedText style={styles.value}>
                                 Rp
-                                {rupiah((data?.payment_method === "qris_dinamis" && data?.amount_unik ?  data?.amount_unik : data?.amount) || 0)}
+                                {rupiah((data?.payment_method === "qris_dinamis" && data?.amount_unik ? data?.amount_unik : data?.amount) || 0)}
                             </ThemedText>
                         </View>
                         <View style={styles.rowBorder}>
