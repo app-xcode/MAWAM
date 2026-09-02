@@ -485,7 +485,7 @@ export default function BatalkanPesananScreen() {
         </View>)}
         <View style={[styles.row, styles.total]}><ThemedText style={styles.bold}>Total Pesanan</ThemedText><ThemedText style={styles.bold}>{rupiah(order.total)}</ThemedText></View>
       </ThemedView>
-      {!isActiveCancellation && isPackedOrder && <ThemedView style={styles.card}>
+      {!isActiveCancellation && (isUnpaidOrder || isPackedOrder) && <ThemedView style={styles.card}>
         <ThemedText style={styles.bold}>Alasan pembatalan</ThemedText>
         <ThemedText style={styles.desc}>Pilih alasan pembatalan untuk diteruskan kepada penjual.</ThemedText>
         <View style={styles.reasonOptions}>
