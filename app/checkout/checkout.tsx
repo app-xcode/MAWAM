@@ -46,6 +46,7 @@ export default function ModalScreen() {
     const [toggleMethod, setToggleMethod] = useState(true);
     const [pilihKurir, setpilihKurir] = useState<any>(null);
     const [pengiriman, setPengiriman] = useState<any[]>([]);
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
 
     interface Kurir {
         code: string,
@@ -531,6 +532,54 @@ export default function ModalScreen() {
         if (error) throw error;
         return true;
     }
+
+    async function handleCheckout() {
+        if (isCheckingOut) return;
+        if (!pilihKurir) {
+            Alerts('Belum atur pengiriman', 'error');
+            return;
+        }
+        if (!metodeBayar) {
+            Alerts('Belum atur metode pembayaran', 'error');
+            return;
+        }
+        if (!bankBayar) {
+            Alerts('Belum pilih bank', 'error');
+            return;
+        }
+
+        setIsCheckingOut(true);
+        try {
+            const payment = await createPayment(total);
+            const orders = await createOrders(payment.id);
+            await createOrderItems(orders);
+            await createPengiriman(orders);
+
+            if (orders.length > 0) {
+                for (const order of orders) {
+                    try {
+                        await notifyOrderCreatedToBuyer(order.buyer_id, order.id);
+                        await notifyOrderCreatedToSeller(order.seller_id, order.id);
+                    } catch (error) {
+                        console.log('Order notification error', error);
+                    }
+                }
+            }
+
+            await deleteCart(cartIds);
+            router.replace({
+                pathname: "pembayaran/mayar",
+                params: {
+                    paymentId: payment.id
+                },
+            });
+        } catch (error) {
+            console.log(error);
+            Alerts('Gagal buat pesanan', 'error');
+        } finally {
+            setIsCheckingOut(false);
+        }
+    }
     type PaymentMethod = {
         id: string;
         type: string;
@@ -911,50 +960,19 @@ export default function ModalScreen() {
                                 <ThemedText>-{rupiah(15000)}</ThemedText>
                             </View> */}
                         </View>
-                        <TouchableOpacity style={{ backgroundColor: ColorDark, padding: 8, borderRadius: 4 }} onPress={async () => {
-                            if (!pilihKurir) {
-                                Alerts('Belum atur pengiriman', 'error');
-                                return
-                            }
-                            if (!metodeBayar) {
-                                Alerts('Belum atur metode pembayaran', 'error');
-                                return
-                            }
-                            if (!bankBayar) {
-                                Alerts('Belum pilih bank', 'error');
-                                return
-                            }
-                            const payment = await createPayment(total);
-                            const orders = payment ? await createOrders(payment.id) : false;
-                            const success1 = orders ? await createOrderItems(orders) : false;
-                            const success2 = orders ? await createPengiriman(orders) : false;
-                            if (success1 && success2) {
-                                if (orders && orders.length > 0) {
-                                    for (const order of orders) {
-                                        try {
-                                            await notifyOrderCreatedToBuyer(order.buyer_id, order.id);
-                                            await notifyOrderCreatedToSeller(order.seller_id, order.id);
-                                        } catch (error) {
-                                            console.log('Order notification error', error);
-                                        }
-                                    }
-                                }
-                                const del = await deleteCart(cartIds);
-                                if (del) {
-                                    router.replace({
-                                        pathname: "pembayaran/mayar",
-                                        params: {
-                                            paymentId: payment.id
-                                        },
-                                    });
-                                }
-                            } else {
-                                Alerts('Gagal buat pesanan', 'error')
-                            }
-                        }}>
-                            <ThemedText style={{ color: ColorLight }}>
-                                Buat Pesanan
-                            </ThemedText>
+                        <TouchableOpacity disabled={isCheckingOut} style={{ backgroundColor: ColorDark, padding: 8, borderRadius: 4, opacity: isCheckingOut ? 0.7 : 1 }} onPress={handleCheckout}>
+                            {isCheckingOut ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <ActivityIndicator size="small" color={ColorLight} />
+                                    <ThemedText style={{ color: ColorLight }}>
+                                        Memproses pesanan...
+                                    </ThemedText>
+                                </View>
+                            ) : (
+                                <ThemedText style={{ color: ColorLight }}>
+                                    Buat Pesanan
+                                </ThemedText>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </ThemedView>

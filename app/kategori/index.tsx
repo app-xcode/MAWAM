@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   FlatList,
+  ActivityIndicator,
   TouchableOpacity,
   StyleSheet,
   View
@@ -22,6 +23,10 @@ export default function KategoriPage() {
   const [nama, setNama] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [isLoadingList, setIsLoadingList] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const isDark = useTheme();
   const colorScheme = isDark ? 'dark' : 'light';
   const ColorBgPri = Colors[colorScheme].inputBg;
@@ -34,17 +39,24 @@ export default function KategoriPage() {
 
   // 🔹 Ambil data
   async function fetchKategori() {
-    const { data, error } = await supabase
-      .from('kategori')
-      .select('*')
-      .order('id', { ascending: false })
+    setIsLoadingList(true)
+    setLoadError(false)
+    try {
+      const { data, error } = await supabase
+        .from('kategori')
+        .select('*')
+        .order('id', { ascending: false })
 
-    if (error) {
-      console.log(error)
-      return
+      if (error) {
+        console.log(error)
+        setLoadError(true)
+        return
+      }
+
+      setKategori(data || [])
+    } finally {
+      setIsLoadingList(false)
     }
-
-    setKategori(data || [])
   }
 
   function handleBatal(editId: any) {
@@ -58,10 +70,13 @@ export default function KategoriPage() {
 
   // 🔹 Tambah / Update
   async function handleSave() {
+    if (isSaving) return
     if (!nama.trim()) {
       Alerts('Nama kategori wajib diisi', 'error', 'top');
       return
     }
+    setIsSaving(true)
+    try {
     if (editId) {
       // UPDATE
       const { error } = await supabase
@@ -91,6 +106,9 @@ export default function KategoriPage() {
         fetchKategori()
       }
     }
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // 🔹 Edit
@@ -100,15 +118,20 @@ export default function KategoriPage() {
   }
 
   const runHapus = async (id: any) => {
-    const { error } = await supabase
-      .from('kategori')
-      .delete()
-      .eq('id', id)
+    setIsDeleting(true)
+    try {
+      const { error } = await supabase
+        .from('kategori')
+        .delete()
+        .eq('id', id)
 
-    if (error) {
-      Alerts('Gagal hapus', 'error');
-    } else {
-      fetchKategori()
+      if (error) {
+        Alerts('Gagal hapus', 'error');
+      } else {
+        fetchKategori()
+      }
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -131,7 +154,7 @@ export default function KategoriPage() {
 
     return (
       <>
-      <ConfirmModal visible={Boolean(pendingDeleteId)} title="Hapus kategori?" message="Kategori yang dihapus tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" onCancel={() => setPendingDeleteId(null)} onConfirm={async () => { if (pendingDeleteId) { await runHapus(pendingDeleteId); setPendingDeleteId(null); } }} />
+      <ConfirmModal visible={Boolean(pendingDeleteId)} title="Hapus kategori?" message="Kategori yang dihapus tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" loading={isDeleting} onCancel={() => setPendingDeleteId(null)} onConfirm={async () => { if (pendingDeleteId) { await runHapus(pendingDeleteId); setPendingDeleteId(null); } }} />
     <View style={{ flex: 1, padding: 16 }}>
       <ThemedText style={{ fontSize: 20, fontWeight: 'bold' }}>
         {user ? 'Kelola Kategori' : 'Kategori'}
@@ -144,6 +167,7 @@ export default function KategoriPage() {
             placeholder="Nama kategori"
             value={nama}
             onChangeText={setNama}
+            editable={!isSaving}
             style={{
               borderWidth: 1,
               marginTop: 10,
@@ -154,6 +178,7 @@ export default function KategoriPage() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <TouchableOpacity
               onPress={() => { handleBatal(editId) }}
+              disabled={isSaving}
               style={{
                 backgroundColor: ColorBgPri,
                 padding: 12,
@@ -170,18 +195,20 @@ export default function KategoriPage() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleSave}
+              disabled={isSaving}
               style={{
                 backgroundColor: ColorText,
                 padding: 12,
                 marginTop: 10,
                 borderRadius: 8,
                 width: '49%',
-                borderWidth:1 
+                borderWidth:1,
+                opacity: isSaving ? 0.7 : 1
               }}
             >
-              <ThemedText style={{ color: ColorBg, textAlign: 'center',fontWeight:'600'}} numberOfLines={1}>
+              {isSaving ? <ActivityIndicator size="small" color={ColorBg} /> : <ThemedText style={{ color: ColorBg, textAlign: 'center',fontWeight:'600'}} numberOfLines={1}>
                 {editId ? 'Update' : 'Tambah'}
-              </ThemedText>
+              </ThemedText>}
             </TouchableOpacity>
 
           </View>
@@ -227,6 +254,11 @@ export default function KategoriPage() {
             </ThemedView>
           </ThemedView>
         )}
+        ListEmptyComponent={
+          <View style={{ paddingVertical: 30, alignItems: 'center', gap: 8 }}>
+            {isLoadingList ? <ActivityIndicator color={ColorText} /> : <ThemedText>{loadError ? 'Gagal memuat kategori' : 'Belum ada kategori'}</ThemedText>}
+          </View>
+        }
       />
     </View>
       </>

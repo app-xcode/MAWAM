@@ -21,7 +21,7 @@ import { encode as btoa } from "base-64"
 import { Link, router, Stack } from "expo-router"
 import * as Sharing from 'expo-sharing'
 import React, { useEffect, useState } from "react"
-import { Dimensions, Platform, Share, StyleSheet, TouchableOpacity, View } from "react-native"
+import { ActivityIndicator, Dimensions, Platform, Share, StyleSheet, TouchableOpacity, View } from "react-native"
 import Carousel from 'react-native-reanimated-carousel'
 const imageDefault = 'https://cros-image.vercel.app/?quest=https://mawam.expo.app/kosong.webp';
 
@@ -45,6 +45,8 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
     const [reviewCount, setReviewCount] = useState(0);
     const [averageRating, setAverageRating] = useState(0);
     const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+    const [addingToCart, setAddingToCart] = useState(false);
+    const [deletingProduct, setDeletingProduct] = useState(false);
     const { loadCart } = useCart();
     const { cart } = useCart();
 
@@ -136,11 +138,15 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
         setPendingDeleteId(id);
     }
     const handleCart = async (produk: any) => {
+        if (addingToCart) return;
+        setAddingToCart(true);
         try {
             await addToCart(produk.id);
             Alerts("Produk ditambahkan ke keranjang.", "success");
         } catch (e: any) {
             Alerts("Produk gagal ditambahkan.", "error");
+        } finally {
+            setAddingToCart(false);
         }
         user && loadCart(user)
     }
@@ -173,7 +179,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
 
     return (
         <>
-        <ConfirmModal visible={pendingDeleteId !== null} title="Hapus produk?" message="Produk yang dihapus tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" onCancel={() => setPendingDeleteId(null)} onConfirm={async () => { if (pendingDeleteId === null) return; hapusProduk(pendingDeleteId, () => { setPendingDeleteId(null); router.dismissAll(); router.navigate('/produk?aksi=delete&id=' + pendingDeleteId); }); }} />
+        <ConfirmModal visible={pendingDeleteId !== null} title="Hapus produk?" message="Produk yang dihapus tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" loading={deletingProduct} onCancel={() => setPendingDeleteId(null)} onConfirm={async () => { if (pendingDeleteId === null || deletingProduct) return; setDeletingProduct(true); try { await hapusProduk(pendingDeleteId, () => { setPendingDeleteId(null); router.dismissAll(); router.navigate('/produk?aksi=delete&id=' + pendingDeleteId); }); } finally { setDeletingProduct(false); } }} />
         <React.Fragment>
             <Stack.Screen options={{
                 title: 'Detail Produk', headerRight: () => (
@@ -528,11 +534,11 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
                 {
                     user && !pemilik && (
                         <React.Fragment>
-                            <TouchableOpacity style={[{ width: '46%' }, styles.button]} onPress={() => {
+                            <TouchableOpacity disabled={addingToCart} style={[{ width: '46%', opacity: addingToCart ? 0.7 : 1 }, styles.button]} onPress={() => {
                                 handleCart(data)
                             }}>
-                                <ThemedText style={styles.buttonText} numberOfLines={1}>
-                                    <Ionicons name="cart-outline" size={18} color={ColorLight} /> Tambah</ThemedText>
+                                {addingToCart ? <ActivityIndicator size="small" color={ColorLight} /> : <ThemedText style={styles.buttonText} numberOfLines={1}>
+                                    <Ionicons name="cart-outline" size={18} color={ColorLight} /> Tambah</ThemedText>}
                             </TouchableOpacity>
                             <Link style={[{ width: '23%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', display: 'flex', gap: 4 }, styles.button]}
                                 target="_blank" href={encodeURI('https://api.whatsapp.com/send?phone=' + nohptowa(data?.mawam_toko?.mawam_profile?.no_hp) + '&text=Halo Admin, Saya mau menanyakan tentang produk ' + data.nama_produk)}
@@ -560,7 +566,7 @@ export default function InfoProduk({ data, setShowImage, setRatio }: any) {
                             }}>
                                 <ThemedText style={styles.buttonText} numberOfLines={1}>Edit</ThemedText>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.button, { width: '23%', backgroundColor: '#aa0000cc' }]} onPress={() => { handleHapus(data.id) }}>
+                            <TouchableOpacity disabled={deletingProduct} style={[styles.button, { width: '23%', backgroundColor: '#aa0000cc', opacity: deletingProduct ? 0.7 : 1 }]} onPress={() => { handleHapus(data.id) }}>
                                 <ThemedText style={styles.buttonText} numberOfLines={1}>Hapus</ThemedText>
                             </TouchableOpacity>
                         </React.Fragment>

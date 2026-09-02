@@ -27,6 +27,7 @@ export default function DetailCart() {
   const [totalHemat, setTotalHemat] = useState<number>(0)
   const [pendingRemove, setPendingRemove] = useState<any | null>(null)
   const [removing, setRemoving] = useState(false)
+  const [updatingCartItemId, setUpdatingCartItemId] = useState<string | null>(null)
 
   const confirmRemove = async () => {
     if (!pendingRemove) return
@@ -91,9 +92,10 @@ export default function DetailCart() {
   }, [data, dataSelect]);
 
   async function fetchCart() {
-    const { data, error } = await supabase
-      .from('mawam_cart')
-      .select(`
+    try {
+      const { data, error } = await supabase
+        .from('mawam_cart')
+        .select(`
       id,
       qty,
       mawam_produk (
@@ -103,22 +105,27 @@ export default function DetailCart() {
         )
       )
     `)
-      .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
-    if (error) {
+      if (error) {
+        console.log(error);
+        setStatusMemuat('Gagal memuat keranjang');
+        return;
+      }
+
+      if (data) {
+        const flatData =
+          data.map((item) => ({
+            cart_id: item.id,
+            jumlah: item.qty,
+            ...item.mawam_produk,
+          })) || [];
+
+        setData(flatData);
+      }
+    } catch (error) {
       console.log(error);
-      return;
-    }
-
-    if (data) {
-      const flatData =
-        data.map((item) => ({
-          cart_id: item.id,
-          jumlah: item.qty,
-          ...item.mawam_produk,
-        })) || [];
-
-      setData(flatData);
+      setStatusMemuat('Gagal memuat keranjang');
     }
   }
 
@@ -247,6 +254,7 @@ export default function DetailCart() {
             )}
             renderItem={({ item }) => {
               const harga_akhir = item?.discount > 0 && dataSelect?.includes(item.cart_id) ? (item.harga - (item.harga * (item.discount / 100))) : item.harga;
+              const isUpdatingQty = updatingCartItemId === item.cart_id;
 
               return (
                 <ThemedView
@@ -294,41 +302,59 @@ export default function DetailCart() {
                         </ThemedText>
                       </TouchableOpacity>
                       <View style={{ flexDirection: 'row', gap: 1, borderRadius: 8, overflow: 'hidden', }}>
-                        <TouchableOpacity style={{ width: 30, height: 30, justifyContent: 'center', alignItems: 'center', backgroundColor: '#80808025', }}
+                        <TouchableOpacity disabled={isUpdatingQty} style={{ width: 30, height: 30, justifyContent: 'center', alignItems: 'center', backgroundColor: '#80808025', opacity: isUpdatingQty ? 0.5 : 1 }}
                           onPress={async () => {
+                            if (isUpdatingQty) return
                             if (item.jumlah < 2) {
                               setPendingRemove(item)
                               return
                             }
-                            const min = await minCart(item.cart_id, item.jumlah);
-                            min && setData((prev: any) =>
-                              prev.map((i: any) =>
-                                i.id === item.id
-                                  ? { ...i, jumlah: i.jumlah - 1 }
-                                  : i
-                              )
-                            );
+                            setUpdatingCartItemId(item.cart_id)
+                            try {
+                              const min = await minCart(item.cart_id, item.jumlah);
+                              min && setData((prev: any) =>
+                                prev.map((i: any) =>
+                                  i.id === item.id
+                                    ? { ...i, jumlah: i.jumlah - 1 }
+                                    : i
+                                )
+                              );
+                            } catch (error) {
+                              console.log(error)
+                              alert('Gagal mengubah jumlah produk')
+                            } finally {
+                              setUpdatingCartItemId(null)
+                            }
                           }}
                         >
                           <ThemedText style={{ fontSize: 18, fontWeight: '600', }}><Ionicons name={'remove'} size={18} /></ThemedText>
                         </TouchableOpacity>
                         <View style={{ width: 30, height: 30, justifyContent: 'center', alignItems: 'center', backgroundColor: '#80808025', }}>
-                          <ThemedText style={{ fontSize: 18, fontWeight: '600', }}>{item.jumlah}</ThemedText>
+                          {isUpdatingQty ? <ActivityIndicator size="small" /> : <ThemedText style={{ fontSize: 18, fontWeight: '600', }}>{item.jumlah}</ThemedText>}
                         </View>
-                        <TouchableOpacity style={{ width: 30, height: 30, justifyContent: 'center', alignItems: 'center', backgroundColor: '#80808025', }}
+                        <TouchableOpacity disabled={isUpdatingQty} style={{ width: 30, height: 30, justifyContent: 'center', alignItems: 'center', backgroundColor: '#80808025', opacity: isUpdatingQty ? 0.5 : 1 }}
                           onPress={async () => {
+                            if (isUpdatingQty) return
                             if (item.jumlah >= 10) {
                               alert('Maaf, maksimal 10 produk')
                               return
                             }
-                            const add = await addCart(item.cart_id, item.jumlah);
-                            add && setData((prev: any) =>
-                              prev.map((i: any) =>
-                                i.id === item.id
-                                  ? { ...i, jumlah: i.jumlah + 1 }
-                                  : i
-                              )
-                            );
+                            setUpdatingCartItemId(item.cart_id)
+                            try {
+                              const add = await addCart(item.cart_id, item.jumlah);
+                              add && setData((prev: any) =>
+                                prev.map((i: any) =>
+                                  i.id === item.id
+                                    ? { ...i, jumlah: i.jumlah + 1 }
+                                    : i
+                                )
+                              );
+                            } catch (error) {
+                              console.log(error)
+                              alert('Gagal mengubah jumlah produk')
+                            } finally {
+                              setUpdatingCartItemId(null)
+                            }
                           }}
                         >
                           <ThemedText style={{ fontSize: 18, fontWeight: '600' }}>

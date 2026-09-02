@@ -42,6 +42,9 @@ export default function ModalScreen() {
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const searchController = useRef<AbortController | null>(null);
     const [hasilLokasi, setHasilLokasi] = useState<any[]>([]);
+    const [isSearchingPostalCode, setIsSearchingPostalCode] = useState(false);
+    const [postalSearchError, setPostalSearchError] = useState(false);
+    const [isSavingAddress, setIsSavingAddress] = useState(false);
 
     useEffect(() => {
         tampilLokasi(latitude, longitude)
@@ -272,23 +275,34 @@ export default function ModalScreen() {
     }
 
     async function updateProfile() {
+        if (isSavingAddress) return;
         const hasTextAreas = prov && kabu && keca && des;
 
         if (hasTextAreas && dataUser.nama && dataUser.no_hp && dataUser.alamat) {
-            const { error } = await supabase.from('mawam_profile').update({
-                nama: dataUser.nama,
-                no_hp: dataUser.no_hp,
-                alamat: dataUser.alamat.trim() + "\n" + ([kode_pos, des, keca, kabu, prov].join(', ')),
-                kode_alamat: [prov, kabu, keca, des].join(' '),
-                kode_pos: kode_pos,
-                latitude,
-                longitude,
-                pin_map: pointAlamat,
-                desa: des
-            }).eq('id', user.id);
-            !error && Alerts('Berhasil Ubah', 'success')
-            cart && router.replace({ pathname: 'checkout/checkout', params: { cart } })
-            return router.back()
+            setIsSavingAddress(true);
+            try {
+                const { error } = await supabase.from('mawam_profile').update({
+                    nama: dataUser.nama,
+                    no_hp: dataUser.no_hp,
+                    alamat: dataUser.alamat.trim() + "\n" + ([kode_pos, des, keca, kabu, prov].join(', ')),
+                    kode_alamat: [prov, kabu, keca, des].join(' '),
+                    kode_pos: kode_pos,
+                    latitude,
+                    longitude,
+                    pin_map: pointAlamat,
+                    desa: des
+                }).eq('id', user.id);
+                if (error) {
+                    console.log(error);
+                    Alerts('Gagal menyimpan alamat', 'error');
+                    return;
+                }
+                Alerts('Berhasil Ubah', 'success')
+                cart && router.replace({ pathname: 'checkout/checkout', params: { cart } })
+                return router.back()
+            } finally {
+                setIsSavingAddress(false);
+            }
         } else {
             Alerts('Pastikan semua sudah terisi', 'error');
         }
@@ -299,6 +313,8 @@ export default function ModalScreen() {
             setSearchResults([]);
             return;
         }
+        setIsSearchingPostalCode(true);
+        setPostalSearchError(false);
         try {
             const res = await fetch(`https://kodepos.vercel.app/search/?q=${encodeURIComponent(q)}`);
             const json = await res.json();
@@ -309,7 +325,10 @@ export default function ModalScreen() {
             setSearchResults(items);
         } catch (e) {
             console.log('fetchAddressSuggestions error', e);
+            setPostalSearchError(true);
             setSearchResults([]);
+        } finally {
+            setIsSearchingPostalCode(false);
         }
     }
 
@@ -381,10 +400,20 @@ export default function ModalScreen() {
                         }} placeholder="" />
                         <ThemedInput label={<ThemedText style={styles.label}>Cari Alamat (desa/kode pos)</ThemedText>} value={searchQuery} onChangeText={(text: string) => {
                             setSearchQuery(text);
+                            setPostalSearchError(false);
                             if (searchTimeout.current) clearTimeout(searchTimeout.current);
                             searchTimeout.current = setTimeout(() => fetchAddressSuggestions(text), 350);
                         }} placeholder="Ketik nama desa atau kecamatan..." />
 
+                        {isSearchingPostalCode ? (
+                            <View style={{ paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <ActivityIndicator size="small" color={iconColor} />
+                                <ThemedText>Mencari kode pos...</ThemedText>
+                            </View>
+                        ) : null}
+                        {postalSearchError ? (
+                            <ThemedText style={{ color: '#d9534f', marginBottom: 8 }}>Gagal mencari kode pos</ThemedText>
+                        ) : null}
                         {searchResults.length > 0 ? (
                             <View style={{ maxHeight: 160, borderRadius: 8, overflow: 'hidden' }}>
                                 {searchResults.map((it: any, idx: number) => (
@@ -497,10 +526,11 @@ export default function ModalScreen() {
                             <ThemedText style={styles.buttonText}>Batal</ThemedText>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[{ width: '48%' }, styles.button, { opacity: 1 }]} onPress={() => {
+                            disabled={isSavingAddress}
+                            style={[{ width: '48%' }, styles.button, { opacity: isSavingAddress ? 0.7 : 1 }]} onPress={() => {
                                 updateProfile()
                             }}>
-                            <ThemedText style={styles.buttonText}>{'Simpan'}</ThemedText>
+                            {isSavingAddress ? <ActivityIndicator size="small" color={ColorLight} /> : <ThemedText style={styles.buttonText}>{'Simpan'}</ThemedText>}
                         </TouchableOpacity>
                     </ThemedView>
                 </View>

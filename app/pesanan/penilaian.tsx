@@ -28,6 +28,7 @@ export default function PenilaianPesanan() {
   const [removedPhotoUrls, setRemovedPhotoUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pickingImageItemId, setPickingImageItemId] = useState<string | null>(null);
 
   const loadOrder = useCallback(async () => {
     if (!user || !orderId) return;
@@ -84,6 +85,7 @@ export default function PenilaianPesanan() {
   };
 
   const removePhoto = (itemId: string, imageUri: string) => {
+    if (saving) return;
     if (imageUri.startsWith('http')) {
       setRemovedPhotoUrls((current) => current.includes(imageUri) ? current : [...current, imageUri]);
     }
@@ -91,32 +93,38 @@ export default function PenilaianPesanan() {
   };
 
   const chooseImage = async (itemId: string) => {
+    if (saving || pickingImageItemId) return;
     const currentImages = forms[itemId]?.imageUris ?? [];
     if (currentImages.length >= 3) {
       Alerts('Maksimal tiga foto untuk setiap produk.', 'error');
       return;
     }
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alerts('Izinkan akses galeri untuk menambahkan foto.', 'error');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: 3 - currentImages.length,
-      quality: 0.8,
-    });
-    if (result.canceled) return;
+    setPickingImageItemId(itemId);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alerts('Izinkan akses galeri untuk menambahkan foto.', 'error');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: 3 - currentImages.length,
+        quality: 0.8,
+      });
+      if (result.canceled) return;
 
-    const optimizedImages = await Promise.all(result.assets.slice(0, 3 - currentImages.length).map((asset) =>
-      ImageManipulator.manipulateAsync(
-        asset.uri,
-        asset.width > 1280 ? [{ resize: { width: 1280 } }] : [],
-        { compress: 0.75, format: ImageManipulator.SaveFormat.WEBP },
-      ),
-    ));
-    updateForm(itemId, { imageUris: [...currentImages, ...optimizedImages.map((image) => image.uri)] });
+      const optimizedImages = await Promise.all(result.assets.slice(0, 3 - currentImages.length).map((asset) =>
+        ImageManipulator.manipulateAsync(
+          asset.uri,
+          asset.width > 1280 ? [{ resize: { width: 1280 } }] : [],
+          { compress: 0.75, format: ImageManipulator.SaveFormat.WEBP },
+        ),
+      ));
+      updateForm(itemId, { imageUris: [...currentImages, ...optimizedImages.map((image) => image.uri)] });
+    } finally {
+      setPickingImageItemId(null);
+    }
   };
 
   const uploadImage = async (itemId: string, imageUri: string, index: number) => {
@@ -220,9 +228,9 @@ export default function PenilaianPesanan() {
           <TextInput value={form.review} onChangeText={(review) => updateForm(item.id, { review })} placeholder="Ceritakan pengalaman Anda (opsional)" placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'} multiline maxLength={500} textAlignVertical="top" style={[styles.input, { color: Colors[scheme].text }]} />
           <ThemedText style={styles.count}>{form.review.length}/500</ThemedText>
           <View style={styles.photos}>
-            {form.imageUris.map((imageUri, index) => <View key={`${imageUri}-${index}`} style={styles.photoWrap}><Image source={{ uri: imageUri }} style={styles.photo} /><TouchableOpacity onPress={() => removePhoto(item.id, imageUri)} style={styles.removePhoto}><Ionicons name="close" size={17} color="#fff" /></TouchableOpacity></View>)}
+            {form.imageUris.map((imageUri, index) => <View key={`${imageUri}-${index}`} style={styles.photoWrap}><Image source={{ uri: imageUri }} style={styles.photo} /><TouchableOpacity disabled={saving} onPress={() => removePhoto(item.id, imageUri)} style={[styles.removePhoto, saving && styles.disabled]}><Ionicons name="close" size={17} color="#fff" /></TouchableOpacity></View>)}
           </View>
-          {form.imageUris.length < 3 && <TouchableOpacity onPress={() => void chooseImage(item.id)} style={styles.photoButton}><Ionicons name="image-outline" size={20} color={ColorDark} /><ThemedText style={styles.photoButtonText}>Tambah foto ({form.imageUris.length}/3)</ThemedText></TouchableOpacity>}
+          {form.imageUris.length < 3 && <TouchableOpacity disabled={saving || pickingImageItemId !== null} onPress={() => void chooseImage(item.id)} style={[styles.photoButton, (saving || pickingImageItemId !== null) && styles.disabled]}>{pickingImageItemId === item.id ? <ActivityIndicator size="small" color={ColorDark} /> : <Ionicons name="image-outline" size={20} color={ColorDark} />}<ThemedText style={styles.photoButtonText}>{pickingImageItemId === item.id ? 'Menyiapkan foto...' : `Tambah foto (${form.imageUris.length}/3)`}</ThemedText></TouchableOpacity>}
         </ThemedView>;
       })}
     </ScrollView>

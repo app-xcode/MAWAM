@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { TouchableOpacity, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, TouchableOpacity, FlatList, StyleSheet, View } from 'react-native';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { markAsRead, markAllAsRead, fetchNotifications, getUnreadNotificationCount, deleteNotification, deleteReadNotifications } from '@/services/notification/notificationService';
 import { Stack, useRouter } from 'expo-router';
@@ -20,6 +20,8 @@ const colorScheme = isDark ? 'dark' : 'light';
   const [pendingDelete, setPendingDelete] = useState<any | null>(null);
   const [deleteReadOpen, setDeleteReadOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [openingNotificationId, setOpeningNotificationId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -151,26 +153,38 @@ const colorScheme = isDark ? 'dark' : 'light';
   };
 
   const handlePress = async (item: any) => {
+    if (openingNotificationId) return;
     // mark read in DB and navigate using data
     const { id, data } = item;
-    const user = (await supabase.auth.getUser()).data.user;
-    if (user) {
-      await markAsRead(id, user.id);
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
-      await refreshUnreadCount(user.id);
-    }
-    if (data && data.path) {
-      // navigate using expo-router
-      router.push(data.path);
+    setOpeningNotificationId(id);
+    try {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (user) {
+        await markAsRead(id, user.id);
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+        await refreshUnreadCount(user.id);
+      }
+      if (data && data.path) {
+        // navigate using expo-router
+        router.push(data.path);
+      }
+    } finally {
+      setOpeningNotificationId(null);
     }
   };
 
   const handleMarkAll = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await markAllAsRead(user.id);
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    await refreshUnreadCount(user.id);
+    if (isMarkingAll) return;
+    setIsMarkingAll(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await markAllAsRead(user.id);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      await refreshUnreadCount(user.id);
+    } finally {
+      setIsMarkingAll(false);
+    }
   };
 
   const handleDeleteNotification = (item: any) => setPendingDelete(item);
@@ -212,7 +226,18 @@ const colorScheme = isDark ? 'dark' : 'light';
       />
       <ConfirmModal visible={Boolean(pendingDelete)} title="Hapus notifikasi?" message="Notifikasi ini akan dihapus dan tidak dapat dikembalikan." confirmText="Hapus" variant="destructive" loading={deleting} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteNotification} />
       <ConfirmModal visible={deleteReadOpen} title="Hapus notifikasi dibaca?" message="Semua notifikasi yang sudah dibaca akan dihapus." confirmText="Hapus" variant="destructive" loading={deleting} onCancel={() => setDeleteReadOpen(false)} onConfirm={confirmDeleteRead} />
-      {notifications.length == 0 &&
+      {loading &&
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 10
+        }}>
+          <ActivityIndicator />
+          <ThemedText>Memuat notifikasi...</ThemedText>
+        </View>
+      }
+      {!loading && notifications.length == 0 &&
         <View style={{
           flex: 1,
           justifyContent: 'center',
@@ -234,12 +259,12 @@ const colorScheme = isDark ? 'dark' : 'light';
           </ThemedText>
         </View>
       }
-      {notifications.length > 0 && <ScrollView style={{ padding: 12 }}>
+      {!loading && notifications.length > 0 && <ScrollView style={{ padding: 12 }}>
         {/* <ThemedText type="title">Notifikasi</ThemedText> */}
         {unreadCount > 0 && <ThemedText>Belum dibaca: {unreadCount}</ThemedText>}
         {notifications.length > 0 && <View style={styles.actionRow}>
-          <TouchableOpacity onPress={handleMarkAll} style={styles.button}>
-            <ThemedText>Tandai semua sudah dibaca</ThemedText>
+          <TouchableOpacity disabled={isMarkingAll} onPress={handleMarkAll} style={[styles.button, isMarkingAll && styles.disabled]}>
+            {isMarkingAll ? <ActivityIndicator size="small" /> : <ThemedText>Tandai semua sudah dibaca</ThemedText>}
           </TouchableOpacity>
           <TouchableOpacity onPress={handleDeleteRead} style={[styles.button, styles.secondaryButton]}>
             <ThemedText>Hapus yang sudah dibaca</ThemedText>
@@ -251,7 +276,7 @@ const colorScheme = isDark ? 'dark' : 'light';
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View style={[styles.item, !item.is_read && styles.unread]}>
-              <TouchableOpacity style={styles.itemBody} onPress={() => handlePress(item)}>
+              <TouchableOpacity disabled={openingNotificationId !== null} style={styles.itemBody} onPress={() => handlePress(item)}>
                 <View style={styles.titleRow}>
                   {!item.is_read && (
                    <ThemedView style={[styles.badge, { backgroundColor: Colors[colorScheme].accent }]}>
@@ -262,6 +287,7 @@ const colorScheme = isDark ? 'dark' : 'light';
                 </View>
                 <ThemedText style={styles.itemMsg}>{item.message}</ThemedText>
                 <ThemedText style={styles.itemDate}>{new Date(item.created_at).toLocaleString()}</ThemedText>
+                {openingNotificationId === item.id && <ThemedText style={styles.itemDate}>Membuka...</ThemedText>}
               </TouchableOpacity>
               <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteNotification(item)}>
                 <Ionicons name="trash-outline" size={18} color="#d32f2f" />
@@ -285,6 +311,7 @@ const colorScheme = isDark ? 'dark' : 'light';
 const styles = StyleSheet.create({
   button: { marginVertical: 8, padding: 8, backgroundColor: '#8a8a8a18', borderRadius: 8 },
   secondaryButton: { backgroundColor: '#ff330028' },
+  disabled: { opacity: 0.6 },
   actionRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
   item: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee', gap: 8, flexDirection: 'row', alignItems: 'flex-start' },
   unread: { backgroundColor: '#75d3ff23' },

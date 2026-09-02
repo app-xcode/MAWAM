@@ -30,6 +30,7 @@ export default function ModalScreen() {
   const [cancellingRequest, setCancellingRequest] = useState(false);
   const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false);
   const [completingOrder, setCompletingOrder] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
   const { isDark } = useTheme();
   const colorScheme = isDark ? "dark" : "light";
   const iconColor = Colors[colorScheme].icon;
@@ -160,6 +161,31 @@ export default function ModalScreen() {
     setShowCompleteConfirmation(false);
     Alerts("Pesanan berhasil diselesaikan.", "success");
     await fetchOrders();
+  };
+
+  const handleReorder = async () => {
+    if (isReordering) return;
+    setIsReordering(true);
+    try {
+      const items = data?.mawam_order_items ?? [];
+      const results = await Promise.allSettled(
+        items.map((item: any) => addToCart(item.mawam_produk.id, item.qty, false))
+      );
+      const failed = results.filter((result) => result.status === "rejected").length;
+
+      if (failed > 0) {
+        Alerts(`${failed} produk gagal ditambahkan ke keranjang.`, "error");
+        return;
+      }
+
+      Alerts("Produk berhasil ditambahkan ke keranjang.", "success");
+      router.navigate('cart/');
+    } catch (error) {
+      console.log(error);
+      Alerts("Gagal menambahkan produk ke keranjang.", "error");
+    } finally {
+      setIsReordering(false);
+    }
   };
 
   return (
@@ -540,17 +566,10 @@ export default function ModalScreen() {
       </ScrollView>
       <ThemedView style={{ padding: 20, paddingTop: 10 }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          {data?.status == 'cancelled' && <TouchableOpacity style={[styles.button, { width: "49%", }]}
-            onPress={async () => {
-              await Promise.all(
-                data?.mawam_order_items?.map((item: any) => {
-                  return addToCart(item.mawam_produk.id, item.qty, false);
-                })
-              );
-              router.navigate('cart/');
-            }}
+          {data?.status == 'cancelled' && <TouchableOpacity disabled={isReordering} style={[styles.button, { width: "49%", opacity: isReordering ? 0.7 : 1 }]}
+            onPress={handleReorder}
           >
-            <ThemedText style={styles.buttonText}>Beli Lagi</ThemedText>
+            {isReordering ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.buttonText}>Beli Lagi</ThemedText>}
           </TouchableOpacity>}
 
           {data?.status != 'cancelled' && data?.status != 'completed' && !isShipped && !hasActiveCancellation && <TouchableOpacity style={[styles.button, { width: "49%", opacity: 0.7 }]}
