@@ -119,20 +119,17 @@ export default function BatalkanPesananScreen() {
 
   const fetchRefundAccounts = useCallback(async () => {
     if (!user) return;
-
     const { data, error } = await supabase
       .from("mawam_refund_accounts")
       .select("id, bank_name, account_number, account_holder_name, is_default")
       .eq("user_id", user.id)
       .order("is_default", { ascending: false })
       .order("created_at", { ascending: false });
-
     if (error) {
       console.log(error);
       Alerts("Rekening refund tidak dapat dimuat.", "error");
       return;
     }
-
     setRefundAccounts(data || []);
     const defaultAccount = data?.find((item) => item.is_default) || data?.[0];
     if (defaultAccount) setSelectedRefundAccountId(defaultAccount.id);
@@ -147,7 +144,6 @@ export default function BatalkanPesananScreen() {
       void fetchOrder();
       void fetchRefundAccounts();
     }, 0);
-
     return () => clearTimeout(loadTimer);
   }, [fetchOrder, fetchRefundAccounts, user]);
 
@@ -156,7 +152,6 @@ export default function BatalkanPesananScreen() {
       Alerts("Lengkapi data rekening refund.", "error");
       return;
     }
-
     const isEditing = Boolean(editingRefundAccountId);
     setSavingAccount(true);
     const accountData = {
@@ -167,17 +162,13 @@ export default function BatalkanPesananScreen() {
     const request = editingRefundAccountId
       ? supabase.from("mawam_refund_accounts").update(accountData).eq("id", editingRefundAccountId).eq("user_id", user.id)
       : supabase.from("mawam_refund_accounts").insert({ ...accountData, user_id: user.id, is_default: refundAccounts.length === 0 });
-    const { data, error } = await request
-      .select("id, bank_name, account_number, account_holder_name, is_default")
-      .single();
+    const { data, error } = await request.select("id, bank_name, account_number, account_holder_name, is_default").single();
     setSavingAccount(false);
-
     if (error) {
       console.log(error);
       Alerts(editingRefundAccountId ? "Rekening refund gagal diperbarui." : "Rekening refund gagal disimpan.", "error");
       return;
     }
-
     setRefundAccounts((current) => editingRefundAccountId
       ? current.map((account) => account.id === data.id ? data : account)
       : [data, ...current]);
@@ -208,117 +199,71 @@ export default function BatalkanPesananScreen() {
 
   const deleteRefundAccount = async () => {
     if (!user || !accountPendingDeletion) return;
-
     const deletedAccountId = accountPendingDeletion.id;
     setAccountPendingDeletion(null);
-    const { error } = await supabase
-      .from("mawam_refund_accounts")
-      .delete()
-      .eq("id", deletedAccountId)
-      .eq("user_id", user.id);
-
+    const { error } = await supabase.from("mawam_refund_accounts").delete().eq("id", deletedAccountId).eq("user_id", user.id);
     if (error) {
       console.log(error);
       Alerts("Rekening tidak dapat dihapus. Rekening yang sudah dipakai untuk refund harus tetap disimpan.", "error");
       return;
     }
-
     const remainingAccounts = refundAccounts.filter((account) => account.id !== deletedAccountId);
     setRefundAccounts(remainingAccounts);
-    if (selectedRefundAccountId === deletedAccountId) {
-      setSelectedRefundAccountId(remainingAccounts[0]?.id || null);
-    }
+    if (selectedRefundAccountId === deletedAccountId) setSelectedRefundAccountId(remainingAccounts[0]?.id || null);
     Alerts("Rekening refund berhasil dihapus.", "success");
   };
 
   const cancelOrder = async () => {
     if (!order || submitting) return;
-
     setSubmitting(true);
-
     try {
-      // ============================================================
-      // PESANAN BELUM DIBAYAR
-      // Langsung batalkan tanpa refund dan tanpa persetujuan seller.
-      // ============================================================
       if (order.status === "pending_payment") {
-        const { error } = await supabase.rpc("cancel_unpaid_order", {
-          p_order_id: order.id,
-          p_reason: reason.trim() || null,
+        const { data, error } = await supabase.functions.invoke("mawam-cancel", {
+          body: {
+            orderId: order.id,
+            reason: reason.trim(),
+          },
         });
-
         if (error) {
           console.log("Cancel unpaid order error:", error);
-          Alerts(
-            error.message || "Pesanan gagal dibatalkan.",
-            "error"
-          );
+          Alerts(error.message || "Pesanan gagal dibatalkan.", "error");
           return;
         }
-
-        Alerts("Pesanan berhasil dibatalkan.", "success");
-
-        router.replace({
-          pathname: "/pesanan/rincian/",
-          params: { orderId: order.id },
-        });
-
+        if (!data?.success) {
+          Alerts(data?.message || "Pesanan gagal dibatalkan.", "error");
+          return;
+        }
+        Alerts(
+          data?.mayar?.closed === false
+            ? "Pesanan dibatalkan. Invoice pembayaran perlu ditutup kembali."
+            : "Pesanan berhasil dibatalkan.",
+          data?.mayar?.closed === false ? "info" : "success"
+        );
+        router.replace({ pathname: "/pesanan/rincian/", params: { orderId: order.id } });
         return;
       }
 
-      // ============================================================
-      // PESANAN SUDAH DIBAYAR
-      // Tetap menggunakan flow refund yang sudah ada.
-      // ============================================================
       if (!selectedRefundAccountId) {
         Alerts("Pilih rekening tujuan refund terlebih dahulu.", "error");
         return;
       }
-
-      const { error } = await supabase.rpc(
-        "request_order_cancellation",
-        {
-          p_order_id: order.id,
-          p_reason: reason.trim(),
-          p_refund_account_id: selectedRefundAccountId,
-        }
-      );
-
+      const { error } = await supabase.rpc("request_order_cancellation", {
+        p_order_id: order.id,
+        p_reason: reason.trim(),
+        p_refund_account_id: selectedRefundAccountId,
+      });
       if (error) {
         console.log(error);
-        Alerts(
-          "Pembatalan pesanan gagal. Silakan coba lagi.",
-          "error"
-        );
+        Alerts("Pembatalan pesanan gagal. Silakan coba lagi.", "error");
         return;
       }
-
       try {
-        if (user?.id) {
-          await notifyCancellationRequestedToBuyer(
-            user.id,
-            order.id
-          );
-        }
-
-        if (order.seller_id) {
-          await notifyCancellationRequestedToSeller(
-            order.seller_id,
-            order.id
-          );
-        }
+        if (user?.id) await notifyCancellationRequestedToBuyer(user.id, order.id);
+        if (order.seller_id) await notifyCancellationRequestedToSeller(order.seller_id, order.id);
       } catch (notificationError) {
-        console.log(
-          "Cancellation notification error",
-          notificationError
-        );
+        console.log("Cancellation notification error", notificationError);
       }
-
-      Alerts(
-        "Permintaan pembatalan berhasil dikirim.",
-        "success"
-      );
-
+      Alerts("Permintaan pembatalan berhasil dikirim.", "success");
       await fetchOrder();
     } finally {
       setSubmitting(false);
@@ -327,25 +272,17 @@ export default function BatalkanPesananScreen() {
 
   const cancelCancellationRequest = async () => {
     if (!cancellation || cancellingRequest) return;
-
     setCancellingRequest(true);
-    const { error } = await supabase.rpc("cancel_order_cancellation", {
-      p_cancellation_id: cancellation.id,
-    });
+    const { error } = await supabase.rpc("cancel_order_cancellation", { p_cancellation_id: cancellation.id });
     setCancellingRequest(false);
     setShowCancelRequestConfirmation(false);
-
     if (error) {
       console.log(error);
       Alerts("Pengajuan pembatalan tidak dapat dibatalkan.", "error");
       return;
     }
-
     Alerts("Pengajuan pembatalan berhasil dibatalkan.", "success");
-    router.replace({
-      pathname: "/pesanan/rincian/",
-      params: { orderId },
-    });
+    router.replace({ pathname: "/pesanan/rincian/", params: { orderId } });
   };
 
   if (!order) return <View style={styles.loading}><ActivityIndicator size="large" color={Colors[scheme].icon} /><ThemedText>Memuat pesanan...</ThemedText></View>;
@@ -355,30 +292,15 @@ export default function BatalkanPesananScreen() {
   const cancellation = order.mawam_order_cancellations?.[0];
   const isActiveCancellation = Boolean(cancellation && cancellation.seller_decision !== "cancelled");
   const isUnpaidOrder = order.status === "pending_payment";
-  const isPackedOrder = [
-    "paid",
-    "processed",
-    "settlement",
-  ].includes(order.status);
-
+  const isPackedOrder = ["paid", "processed", "settlement"].includes(order.status);
   const canCancel = isUnpaidOrder
     ? !isActiveCancellation
-    : isPackedOrder &&
-    !isActiveCancellation &&
-    Boolean(selectedRefundAccountId) &&
-    selectedReason !== null &&
-    (selectedReason !== "other" || Boolean(reason.trim()));
+    : isPackedOrder && !isActiveCancellation && Boolean(selectedRefundAccountId) && selectedReason !== null && (selectedReason !== "other" || Boolean(reason.trim()));
   const askConfirmation = () => {
-    if (!isUnpaidOrder) {
-      if (selectedReason === "other" && !reason.trim()) {
-        Alerts(
-          "Tulis alasan pembatalan terlebih dahulu.",
-          "info"
-        );
-        return;
-      }
+    if (!isUnpaidOrder && selectedReason === "other" && !reason.trim()) {
+      Alerts("Tulis alasan pembatalan terlebih dahulu.", "info");
+      return;
     }
-
     setShowConfirmation(true);
   };
 
@@ -387,242 +309,140 @@ export default function BatalkanPesananScreen() {
     <Modal transparent visible={showConfirmation} animationType="fade" onRequestClose={() => setShowConfirmation(false)}>
       <View style={styles.modalOverlay}>
         <ThemedView style={styles.modalCard}>
-          <View style={styles.modalIcon}>
-            <Ionicons name="alert-circle-outline" size={28} color={ColorDark} />
-          </View>
-
-          <ThemedText style={styles.modalTitle}>
-            {isUnpaidOrder
-              ? "Batalkan pesanan?"
-              : "Kirim permintaan pembatalan?"}
-          </ThemedText>
-
-          <ThemedText style={styles.modalDescription}>
-            {isUnpaidOrder
-              ? "Pesanan ini belum dibayar dan akan langsung dibatalkan. Anda tidak perlu melakukan pembayaran untuk pesanan ini."
-              : "Jika pembayaran sudah lebih dari satu jam, permintaan akan menunggu persetujuan penjual. Setelah disetujui, admin memproses refund manual ke rekening Anda."}
-          </ThemedText>
-
+          <View style={styles.modalIcon}><Ionicons name="alert-circle-outline" size={28} color={ColorDark} /></View>
+          <ThemedText style={styles.modalTitle}>{info.title}</ThemedText>
+          <ThemedText style={styles.modalDescription}>{info.description}</ThemedText>
+          <ThemedText style={styles.modalConsequence}>{info.consequence}</ThemedText>
           <View style={styles.modalActions}>
-            <TouchableOpacity onPress={() => setShowConfirmation(false)} style={styles.modalBackButton}>
-              <ThemedText style={styles.backText}>Kembali</ThemedText>
+            <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setShowConfirmation(false)} disabled={submitting}>
+              <ThemedText>Periksa Lagi</ThemedText>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                setShowConfirmation(false);
-                void cancelOrder();
-              }}
-              style={styles.modalCancelButton}
-            >
-              <ThemedText style={styles.cancelText}>
-                {isUnpaidOrder
-                  ? "Batalkan Pesanan"
-                  : "Kirim Permintaan"}
-              </ThemedText>
+            <TouchableOpacity style={styles.modalPrimaryButton} onPress={() => { setShowConfirmation(false); void cancelOrder(); }} disabled={submitting}>
+              {submitting ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.primaryButtonText}>Ya, Batalkan</ThemedText>}
             </TouchableOpacity>
           </View>
         </ThemedView>
       </View>
     </Modal>
+
     <Modal transparent visible={showCancelRequestConfirmation} animationType="fade" onRequestClose={() => setShowCancelRequestConfirmation(false)}>
       <View style={styles.modalOverlay}>
         <ThemedView style={styles.modalCard}>
-          <View style={styles.modalIcon}><Ionicons name="close-circle-outline" size={28} color={ColorDark} /></View>
+          <View style={styles.modalIcon}><Ionicons name="help-circle-outline" size={28} color={ColorDark} /></View>
           <ThemedText style={styles.modalTitle}>Batalkan pengajuan?</ThemedText>
-          <ThemedText style={styles.modalDescription}>Penjual tidak akan memproses pembatalan ini. Anda dapat mengajukan pembatalan kembali nanti bila diperlukan.</ThemedText>
+          <ThemedText style={styles.modalDescription}>Pengajuan pembatalan yang masih menunggu keputusan penjual akan dibatalkan.</ThemedText>
           <View style={styles.modalActions}>
-            <TouchableOpacity disabled={cancellingRequest} onPress={() => setShowCancelRequestConfirmation(false)} style={styles.modalBackButton}><ThemedText style={styles.backText}>Kembali</ThemedText></TouchableOpacity>
-            <TouchableOpacity disabled={cancellingRequest} onPress={cancelCancellationRequest} style={[styles.modalCancelButton, cancellingRequest && styles.disabled]}>{cancellingRequest ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.cancelText}>Batalkan Pengajuan</ThemedText>}</TouchableOpacity>
+            <TouchableOpacity style={styles.modalSecondaryButton} onPress={() => setShowCancelRequestConfirmation(false)} disabled={cancellingRequest}><ThemedText>Tidak</ThemedText></TouchableOpacity>
+            <TouchableOpacity style={styles.modalPrimaryButton} onPress={() => void cancelCancellationRequest()} disabled={cancellingRequest}>{cancellingRequest ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.primaryButtonText}>Ya, Batalkan</ThemedText>}</TouchableOpacity>
           </View>
         </ThemedView>
       </View>
     </Modal>
-    <Modal transparent visible={Boolean(accountPendingDeletion)} animationType="fade" onRequestClose={() => setAccountPendingDeletion(null)}>
-      <View style={styles.modalOverlay}>
-        <ThemedView style={styles.modalCard}>
-          <View style={styles.modalIcon}><Ionicons name="trash-outline" size={28} color={ColorDark} /></View>
-          <ThemedText style={styles.modalTitle}>Hapus rekening?</ThemedText>
-          <ThemedText style={styles.modalDescription}>Rekening {accountPendingDeletion?.bank_name} · {accountPendingDeletion?.account_number} akan dihapus. Rekening yang sudah dipakai pada refund tidak dapat dihapus.</ThemedText>
-          <View style={styles.modalActions}>
-            <TouchableOpacity onPress={() => setAccountPendingDeletion(null)} style={styles.modalBackButton}><ThemedText style={styles.backText}>Batal</ThemedText></TouchableOpacity>
-            <TouchableOpacity onPress={deleteRefundAccount} style={styles.modalCancelButton}><ThemedText style={styles.cancelText}>Hapus</ThemedText></TouchableOpacity>
-          </View>
-        </ThemedView>
-      </View>
-    </Modal>
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <ThemedView style={styles.card}>
-        <View style={styles.heading}>
-          <View style={styles.icon}><Ionicons name={info.icon} size={24} color={ColorLight} /></View>
-          <View style={styles.flex}><ThemedText style={styles.title}>{info.title}</ThemedText><ThemedText style={styles.desc}>{info.description}</ThemedText></View>
-        </View>
-        <View style={styles.notice}><Ionicons name="information-circle-outline" size={19} color={Colors[scheme].icon} /><ThemedText style={styles.noticeText}>{info.consequence}</ThemedText></View>
-      </ThemedView>
-      {isActiveCancellation && (() => {
-        const progress = cancellationProgressInfo(cancellation);
-        return <ThemedView style={styles.statusCard}>
-          <Ionicons name={progress.icon} size={24} color={Colors[scheme].icon} />
-          <View style={styles.flex}>
-            <ThemedText style={styles.bold}>{progress.title}</ThemedText>
-            <ThemedText style={styles.desc}>{progress.description}</ThemedText>
-            {cancellation.seller_decision === "pending" && <TouchableOpacity onPress={() => setShowCancelRequestConfirmation(true)} style={styles.cancelRequestButton}>
-              <ThemedText style={styles.cancelRequestButtonText}>Batalkan Pengajuan</ThemedText>
-            </TouchableOpacity>}
-          </View>
-        </ThemedView>;
-      })()}
-      {cancellation?.seller_decision === "cancelled" && <ThemedView style={styles.statusCard}>
-        <Ionicons name="information-circle-outline" size={24} color={Colors[scheme].icon} />
-        <View style={styles.flex}><ThemedText style={styles.bold}>Pengajuan sebelumnya dibatalkan</ThemedText><ThemedText style={styles.desc}>Anda dapat mengajukan pembatalan baru bila masih diperlukan.</ThemedText></View>
-      </ThemedView>}
-      <ThemedView style={styles.card}>
-        <ThemedText style={styles.bold}>Pesanan yang dibatalkan</ThemedText>
-        <View style={styles.row}><ThemedText style={styles.muted}>No. Pesanan</ThemedText><ThemedText>{order.invoice}</ThemedText></View>
-        <View style={styles.row}><ThemedText style={styles.muted}>Toko</ThemedText><ThemedText>{storeName}</ThemedText></View>
-        {order.mawam_order_items?.map((item: any, index: number) => <View key={index} style={styles.item}>
-          <View style={styles.flex}><ThemedText numberOfLines={1}>{item.mawam_produk?.nama_produk}</ThemedText><ThemedText style={styles.muted}>{item.qty} {item.mawam_produk?.satuan}</ThemedText></View>
-          <ThemedText>{rupiah(item.subtotal)}</ThemedText>
-        </View>)}
-        <View style={[styles.row, styles.total]}><ThemedText style={styles.bold}>Total Pesanan</ThemedText><ThemedText style={styles.bold}>{rupiah(order.total)}</ThemedText></View>
-      </ThemedView>
-      {!isActiveCancellation && (isUnpaidOrder || isPackedOrder) && <ThemedView style={styles.card}>
-        <ThemedText style={styles.bold}>Alasan pembatalan</ThemedText>
-        <ThemedText style={styles.desc}>Pilih alasan pembatalan untuk diteruskan kepada penjual.</ThemedText>
-        <View style={styles.reasonOptions}>
-          {commonCancellationReasons.map((commonReason) => {
-            const selected = selectedReason === commonReason;
 
-            return <TouchableOpacity
-              key={commonReason}
-              onPress={() => {
-                setSelectedReason(commonReason);
-                setReason(commonReason);
-              }}
-              style={[styles.reasonOption, selected && styles.reasonOptionSelected]}
-            >
-              <Ionicons name={selected ? "checkmark-circle" : "ellipse-outline"} size={18} color={selected ? ColorDark : Colors[scheme].icon} />
-              <ThemedText style={[styles.reasonOptionText, selected && styles.reasonOptionTextSelected]}>{commonReason}</ThemedText>
-            </TouchableOpacity>;
-          })}
-          <TouchableOpacity
-            onPress={() => {
-              setSelectedReason("other");
-              setReason("");
-            }}
-            style={[styles.reasonOption, selectedReason === "other" && styles.reasonOptionSelected]}
-          >
-            <Ionicons name={selectedReason === "other" ? "checkmark-circle" : "ellipse-outline"} size={18} color={selectedReason === "other" ? ColorDark : Colors[scheme].icon} />
-            <ThemedText style={[styles.reasonOptionText, selectedReason === "other" && styles.reasonOptionTextSelected]}>Alasan lainnya</ThemedText>
-          </TouchableOpacity>
-        </View>
-        {selectedReason === "other" && <>
-          <TextInput value={reason} onChangeText={setReason} placeholder="Tulis alasan pembatalan Anda" placeholderTextColor={isDark ? "#9CA3AF" : "#6B7280"} multiline maxLength={300} textAlignVertical="top" style={[styles.input, { color: Colors[scheme].text, borderColor: Colors[scheme].icon }]} />
-          <ThemedText style={styles.count}>{reason.length}/300</ThemedText>
-        </>}
-      </ThemedView>}
-      {!isActiveCancellation && isPackedOrder && <ThemedView style={styles.card}>
-        <ThemedText style={styles.bold}>Rekening tujuan refund</ThemedText>
-        <ThemedText style={styles.desc}>Admin akan mentransfer refund manual ke rekening yang Anda pilih setelah pembatalan disetujui.</ThemedText>
-        {refundAccounts.map((account) => {
-          const selected = selectedRefundAccountId === account.id;
-          return <View key={account.id} style={[styles.accountOption, selected && styles.reasonOptionSelected]}>
-            <TouchableOpacity onPress={() => setSelectedRefundAccountId(account.id)} style={styles.accountOptionMain}>
-              <Ionicons name={selected ? "checkmark-circle" : "ellipse-outline"} size={18} color={selected ? ColorDark : Colors[scheme].icon} />
-              <View style={styles.flex}>
-                <ThemedText style={[styles.reasonOptionText, selected && styles.reasonOptionTextSelected]}>{account.bank_name} · {account.account_number}</ThemedText>
-                <ThemedText style={styles.muted}>{account.account_holder_name}</ThemedText>
-              </View>
-            </TouchableOpacity>
-            <View style={styles.accountOptionActions}>
-              <TouchableOpacity onPress={() => startEditRefundAccount(account)} style={styles.accountAction}><Ionicons name="pencil-outline" size={18} color={Colors[scheme].icon} /></TouchableOpacity>
-              <TouchableOpacity onPress={() => setAccountPendingDeletion(account)} style={styles.accountAction}><Ionicons name="trash-outline" size={18} color={Colors[scheme].icon} /></TouchableOpacity>
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.card}>
+        <ThemedText style={styles.sectionTitle}>{storeName}</ThemedText>
+        <ThemedText style={styles.invoice}>{order.invoice}</ThemedText>
+        {order.mawam_order_items?.map((item: any, index: number) => (
+          <View key={`${item.produk_id || index}-${index}`} style={styles.itemRow}>
+            <View style={{ flex: 1 }}>
+              <ThemedText>{item.mawam_produk?.nama_produk || "Produk"}</ThemedText>
+              <ThemedText style={styles.muted}>{item.qty} {item.mawam_produk?.satuan || "item"}</ThemedText>
             </View>
-          </View>;
-        })}
-        {!isAddingRefundAccount ? <TouchableOpacity onPress={() => setIsAddingRefundAccount(true)} style={styles.addAccountButton}>
-          <Ionicons name="add-circle-outline" size={19} color={ColorDark} />
-          <ThemedText style={styles.addAccountText}>{refundAccounts.length ? "Tambah rekening lain" : "Tambah rekening refund"}</ThemedText>
-        </TouchableOpacity> : <View style={styles.accountForm}>
-          <ThemedInput value={bankName} onChangeText={setBankName} placeholder="Nama bank, contoh: BRI" autoCapitalize="characters" editable={!savingAccount} />
-          <ThemedInput value={accountNumber} onChangeText={setAccountNumber} placeholder="Nomor rekening" keyboardType="number-pad" editable={!savingAccount} />
-          <ThemedInput value={accountHolderName} onChangeText={setAccountHolderName} placeholder="Nama pemilik rekening" autoCapitalize="words" editable={!savingAccount} />
-          <View style={styles.accountActions}>
-            <TouchableOpacity disabled={savingAccount} onPress={resetRefundAccountForm} style={styles.accountCancelButton}><ThemedText style={styles.backText}>Batal</ThemedText></TouchableOpacity>
-            <TouchableOpacity disabled={savingAccount} onPress={saveRefundAccount} style={[styles.accountSaveButton, savingAccount && styles.disabled]}>{savingAccount ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.cancelText}>{editingRefundAccountId ? "Simpan Perubahan" : "Simpan Rekening"}</ThemedText>}</TouchableOpacity>
+            <ThemedText>{rupiah(item.subtotal || 0)}</ThemedText>
           </View>
-        </View>}
-      </ThemedView>}
-      {!isActiveCancellation &&
-        !isUnpaidOrder &&
-        !isPackedOrder && (
-          <ThemedView style={styles.statusCard}>
-            <Ionicons
-              name="information-circle-outline"
-              size={24}
-              color={Colors[scheme].icon}
-            />
-            <View style={styles.flex}>
-              <ThemedText style={styles.bold}>
-                Pembatalan refund belum tersedia
-              </ThemedText>
-              <ThemedText style={styles.desc}>
-                Saat ini pengajuan pembatalan manual hanya tersedia
-                untuk pesanan berstatus Dikemas.
-              </ThemedText>
+        ))}
+        <View style={styles.totalRow}><ThemedText>Total</ThemedText><ThemedText style={styles.total}>{rupiah(order.total || 0)}</ThemedText></View>
+      </View>
+
+      {cancellation && isActiveCancellation ? (
+        <View style={styles.card}>
+          <View style={styles.statusIcon}><Ionicons name={cancellationProgressInfo(cancellation).icon} size={28} color={ColorDark} /></View>
+          <ThemedText style={styles.sectionTitle}>{cancellationProgressInfo(cancellation).title}</ThemedText>
+          <ThemedText style={styles.muted}>{cancellationProgressInfo(cancellation).description}</ThemedText>
+          {cancellation.seller_decision === "pending" && (
+            <TouchableOpacity style={styles.secondaryFullButton} onPress={() => setShowCancelRequestConfirmation(true)}><ThemedText>Batalkan Pengajuan</ThemedText></TouchableOpacity>
+          )}
+        </View>
+      ) : order.status === "cancelled" ? (
+        <View style={styles.card}>
+          <Ionicons name="close-circle-outline" size={30} color={ColorDark} />
+          <ThemedText style={styles.sectionTitle}>Pesanan sudah dibatalkan</ThemedText>
+          <ThemedText style={styles.muted}>Pesanan ini tidak dapat dibayar kembali.</ThemedText>
+        </View>
+      ) : (
+        <>
+          {!isUnpaidOrder && (
+            <View style={styles.card}>
+              <ThemedText style={styles.sectionTitle}>Alasan pembatalan</ThemedText>
+              {commonCancellationReasons.map((item) => (
+                <TouchableOpacity key={item} style={[styles.reasonButton, selectedReason === item && styles.reasonSelected]} onPress={() => { setSelectedReason(item); setReason(item); }}>
+                  <Ionicons name={selectedReason === item ? "radio-button-on" : "radio-button-off"} size={20} color={ColorDark} />
+                  <ThemedText style={{ flex: 1 }}>{item}</ThemedText>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={[styles.reasonButton, selectedReason === "other" && styles.reasonSelected]} onPress={() => setSelectedReason("other")}>
+                <Ionicons name={selectedReason === "other" ? "radio-button-on" : "radio-button-off"} size={20} color={ColorDark} />
+                <ThemedText style={{ flex: 1 }}>Alasan lainnya</ThemedText>
+              </TouchableOpacity>
+              {selectedReason === "other" && <TextInput value={reason} onChangeText={setReason} placeholder="Tulis alasan pembatalan" multiline style={styles.textInput} />}
             </View>
-          </ThemedView>
-        )}
+          )}
+
+          {!isUnpaidOrder && (
+            <View style={styles.card}>
+              <ThemedText style={styles.sectionTitle}>Rekening refund</ThemedText>
+              {refundAccounts.map((account) => (
+                <TouchableOpacity key={account.id} style={[styles.accountRow, selectedRefundAccountId === account.id && styles.reasonSelected]} onPress={() => setSelectedRefundAccountId(account.id)}>
+                  <Ionicons name={selectedRefundAccountId === account.id ? "radio-button-on" : "radio-button-off"} size={20} color={ColorDark} />
+                  <View style={{ flex: 1 }}><ThemedText>{account.bank_name}</ThemedText><ThemedText style={styles.muted}>{account.account_number} · {account.account_holder_name}</ThemedText></View>
+                  <TouchableOpacity onPress={() => startEditRefundAccount(account)}><Ionicons name="create-outline" size={20} color={ColorDark} /></TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+              {isAddingRefundAccount && <View style={styles.form}><ThemedInput value={bankName} onChangeText={setBankName} placeholder="Nama bank" /><ThemedInput value={accountNumber} onChangeText={setAccountNumber} placeholder="Nomor rekening" keyboardType="number-pad" /><ThemedInput value={accountHolderName} onChangeText={setAccountHolderName} placeholder="Nama pemilik rekening" /><View style={styles.inlineActions}><TouchableOpacity onPress={resetRefundAccountForm}><ThemedText>Batal</ThemedText></TouchableOpacity><TouchableOpacity onPress={() => void saveRefundAccount()} disabled={savingAccount}><ThemedText style={styles.linkButton}>{savingAccount ? "Menyimpan..." : "Simpan"}</ThemedText></TouchableOpacity></View></View>}
+              {!isAddingRefundAccount && <TouchableOpacity style={styles.secondaryFullButton} onPress={() => setIsAddingRefundAccount(true)}><Ionicons name="add" size={18} color={ColorDark} /><ThemedText>Tambah rekening</ThemedText></TouchableOpacity>}
+            </View>
+          )}
+
+          {isUnpaidOrder && <View style={styles.card}><ThemedText style={styles.muted}>Karena pesanan belum dibayar, pembatalan tidak memerlukan rekening refund.</ThemedText></View>}
+          <TouchableOpacity style={[styles.primaryFullButton, !canCancel && styles.disabledButton]} onPress={askConfirmation} disabled={!canCancel || submitting}>
+            <ThemedText style={styles.primaryButtonText}>{isUnpaidOrder ? "Batalkan Pesanan" : "Ajukan Pembatalan"}</ThemedText>
+          </TouchableOpacity>
+        </>
+      )}
     </ScrollView>
-    <ThemedView style={styles.footer}>
-      <TouchableOpacity disabled={submitting} onPress={() => router.back()} style={[styles.back, isActiveCancellation && { flex: 1 }]}><ThemedText style={styles.backText}>{isActiveCancellation ? "Kembali ke Pesanan" : "Kembali"}</ThemedText></TouchableOpacity>
-      {!isActiveCancellation && <TouchableOpacity disabled={submitting || !canCancel} onPress={askConfirmation} style={[styles.cancel, (submitting || !canCancel) && styles.disabled]}>
-        {submitting ? <ActivityIndicator color={ColorLight} /> : <ThemedText style={styles.cancelText}>
-          {isUnpaidOrder
-            ? "Batalkan Pesanan"
-            : "Ajukan Pembatalan"}
-        </ThemedText>}
-      </TouchableOpacity>}
-    </ThemedView>
   </>;
 }
 
 const styles = StyleSheet.create({
+  container: { padding: 8, paddingBottom: 30 },
+  card: { backgroundColor: "#fff", borderRadius: 8, padding: 12, marginBottom: 8 },
+  sectionTitle: { fontWeight: "600", fontSize: 16, marginBottom: 5 },
+  invoice: { opacity: 0.55, fontSize: 12, marginBottom: 10 },
+  itemRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "rgba(204,204,204,0.12)" },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 10 },
+  total: { fontWeight: "700" },
+  muted: { opacity: 0.65, fontSize: 13 },
+  reasonButton: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 8 },
+  reasonSelected: { backgroundColor: "rgba(128,128,128,0.08)" },
+  accountRow: { flexDirection: "row", alignItems: "center", gap: 8, padding: 9, borderRadius: 8, marginBottom: 4 },
+  textInput: { minHeight: 90, borderWidth: 1, borderColor: "rgba(128,128,128,0.25)", borderRadius: 8, padding: 10, textAlignVertical: "top", marginTop: 8 },
+  form: { gap: 8, marginTop: 8 },
+  inlineActions: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 },
+  linkButton: { fontWeight: "600" },
+  primaryFullButton: { backgroundColor: ColorDark, borderRadius: 8, padding: 13, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  secondaryFullButton: { borderWidth: 1, borderColor: "rgba(128,128,128,0.25)", borderRadius: 8, padding: 12, alignItems: "center", justifyContent: "center", marginTop: 10, flexDirection: "row", gap: 6 },
+  disabledButton: { opacity: 0.45 },
+  primaryButtonText: { color: "#fff", fontWeight: "600" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 20 },
+  modalCard: { borderRadius: 14, padding: 18 },
+  modalIcon: { alignItems: "center", marginBottom: 8 },
+  modalTitle: { fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 8 },
+  modalDescription: { textAlign: "center", marginBottom: 8 },
+  modalConsequence: { textAlign: "center", opacity: 0.65, fontSize: 13 },
+  modalActions: { flexDirection: "row", gap: 8, marginTop: 18 },
+  modalSecondaryButton: { flex: 1, borderWidth: 1, borderColor: "rgba(128,128,128,0.25)", borderRadius: 8, padding: 12, alignItems: "center" },
+  modalPrimaryButton: { flex: 1, backgroundColor: ColorDark, borderRadius: 8, padding: 12, alignItems: "center" },
+  statusIcon: { marginBottom: 8 },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
-  container: { padding: 12, gap: 10 }, card: { borderRadius: 10, padding: 14, gap: 10 },
-  heading: { flexDirection: "row", gap: 12, alignItems: 'flex-start' }, flex: { flex: 1 }, icon: { backgroundColor: ColorDark, padding: 9, borderRadius: 24 },
-  title: { fontSize: 17, fontWeight: "700" }, bold: { fontWeight: "700" }, desc: { opacity: 0.72, lineHeight: 20 },
-  notice: { flexDirection: "row", gap: 8, padding: 10, borderRadius: 8, backgroundColor: "#8888881A" }, noticeText: { flex: 1, opacity: 0.8, lineHeight: 19 },
-  statusCard: { borderRadius: 10, padding: 14, gap: 10, flexDirection: "row", alignItems: "flex-start" },
-  row: { flexDirection: "row", justifyContent: "space-between", gap: 12 }, muted: { opacity: 0.65 },
-  item: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: "#88888855", paddingTop: 10, flexDirection: "row", gap: 12 },
-  total: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: "#88888855", paddingTop: 10 },
-  reasonOptions: { gap: 8 },
-  reasonOption: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#88888855", borderRadius: 8, padding: 10 },
-  reasonOptionSelected: { borderColor: ColorDark, backgroundColor: "#8888881A" },
-  reasonOptionText: { flex: 1 },
-  reasonOptionTextSelected: { color: ColorDark, fontWeight: "600" },
-  accountOption: { borderWidth: 1, borderColor: "#88888855", borderRadius: 8, overflow: "hidden" },
-  accountOptionMain: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10 },
-  accountOptionActions: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: "#88888855", flexDirection: "row", justifyContent: "flex-end", gap: 4, padding: 4 },
-  accountAction: { padding: 6 },
-  addAccountButton: { borderWidth: 1, borderStyle: "dashed", borderColor: ColorDark, borderRadius: 8, padding: 11, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 7 },
-  addAccountText: { color: ColorDark, fontWeight: "600" },
-  accountForm: { gap: 4, marginTop: 2 },
-  accountActions: { flexDirection: "row", gap: 8, marginTop: 4 },
-  accountCancelButton: { flex: 1, borderWidth: 1, borderColor: ColorDark, borderRadius: 8, paddingVertical: 11, alignItems: "center" },
-  accountSaveButton: { flex: 1.5, backgroundColor: ColorDark, borderRadius: 8, paddingVertical: 11, alignItems: "center", justifyContent: "center" },
-  input: { minHeight: 92, borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14 }, count: { alignSelf: "flex-end", opacity: 0.55, fontSize: 12, marginTop: -5 },
-  footer: { flexDirection: "row", gap: 10, padding: 12, paddingBottom: 20 }, back: { flex: 1, borderColor: ColorDark, borderWidth: 1, paddingVertical: 13, borderRadius: 10, alignItems: "center" },
-  backText: { color: ColorDark, fontWeight: "700" }, cancel: { flex: 1.45, backgroundColor: ColorDark, paddingVertical: 13, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  cancelText: { color: ColorLight, fontWeight: "700" }, disabled: { opacity: 0.55 },
-  modalOverlay: { flex: 1, backgroundColor: "#00000080", alignItems: "center", justifyContent: "center", padding: 24 },
-  modalCard: { width: "100%", maxWidth: 420, borderRadius: 14, padding: 20, alignItems: "center", gap: 12 },
-  modalIcon: { width: 54, height: 54, borderRadius: 27, backgroundColor: "#8888881A", alignItems: "center", justifyContent: "center" },
-  modalTitle: { fontSize: 18, fontWeight: "700", textAlign: "center" },
-  modalDescription: { opacity: 0.72, lineHeight: 20, textAlign: "center" },
-  modalActions: { flexDirection: "row", gap: 10, width: "100%", marginTop: 6 },
-  modalBackButton: { flex: 1, borderColor: ColorDark, borderWidth: 1, borderRadius: 9, paddingVertical: 12, alignItems: "center" },
-  modalCancelButton: { flex: 1, backgroundColor: ColorDark, borderRadius: 9, paddingVertical: 12, alignItems: "center" },
-  cancelRequestButton: { alignSelf: "flex-start", marginTop: 10, borderWidth: 1, borderColor: ColorDark, borderRadius: 7, paddingHorizontal: 10, paddingVertical: 7 },
-  cancelRequestButtonText: { color: ColorDark, fontWeight: "600" },
 });
