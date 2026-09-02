@@ -6,7 +6,6 @@ import Alerts from '@/constants/Alerts'
 import { rupiah } from '@/constants/rupiah'
 import { Colors } from '@/constants/theme'
 import { supabase } from '@/lib/supabase'
-import { notifyCancellationDecisionToBuyer } from '@/services/notification/notificationTriggers'
 import { useAuth } from '@/utils/auth'
 import { useTheme } from '@/utils/theme'
 import { Ionicons } from '@expo/vector-icons'
@@ -35,7 +34,6 @@ export default function SellerCancellationDetail() {
       router.replace('produk');
       return;
     }
-
     fetchOrder();
   }, [user]);
 
@@ -55,12 +53,10 @@ export default function SellerCancellationDetail() {
       Alerts('Pesanan tidak dapat dimuat.', 'error');
       return;
     }
-
     setData(data ?? null);
   }
 
   const cancellation = Array.isArray(data?.mawam_order_cancellations) ? data.mawam_order_cancellations[0] : data?.mawam_order_cancellations;
-
   const eligibleStatuses = ['paid', 'processed', 'settlement'];
   const orderCreatedAt = data?.created_at || data?.mawam_payments?.created_at;
   const paymentCreatedAt = data?.mawam_payments?.created_at || data?.paid_at || data?.created_at;
@@ -69,92 +65,48 @@ export default function SellerCancellationDetail() {
   const isAutoExpiredCancellation = !cancellation && eligibleStatuses.includes(data?.status) && isLateForReview;
   const reviewReason = cancellation?.reason || data?.cancellation_reason || (isAutoExpiredCancellation ? 'Pembatalan otomatis karena pembayaran / proses pesanan melewati batas waktu 1 jam.' : 'Tidak ada alasan yang dicatat.');
   const hasPendingSellerDecision = cancellation?.seller_decision === 'pending';
-  const canRespondToCancellationRequest = Boolean(
-    isAutoExpiredCancellation || hasPendingSellerDecision
-  );
+  const canRespondToCancellationRequest = Boolean(isAutoExpiredCancellation || hasPendingSellerDecision);
 
   const approveCancellation = async () => {
-    if (processing) return;
+    if (processing || !cancellation?.id) return;
     setProcessing(true);
 
-    const cancellationPayload = {
-      order_id: data.id,
-      reason: reviewReason,
-      seller_decision: 'approved',
-      seller_rejection_reason: null,
-    };
-
-    let err1 = null;
-    if (cancellation?.id) {
-      const updateResult = await supabase.from('mawam_order_cancellations').update({ seller_decision: 'approved', reason: reviewReason, seller_rejection_reason: null }).eq('id', cancellation.id);
-      err1 = updateResult.error;
-    } else {
-      const insertResult = await supabase.from('mawam_order_cancellations').insert(cancellationPayload);
-      err1 = insertResult.error;
-    }
-
-    if (err1) {
-      console.log(err1);
-      Alerts('Gagal menyetujui pembatalan.', 'error');
-      setProcessing(false);
-      return;
-    }
-
-    const { error: err2 } = await supabase.from('mawam_orders').update({ status: 'cancelled', cancelled_by: 'seller', cancellation_reason: reviewReason }).eq('id', orderId);
+    const { error } = await supabase.rpc('seller_decide_cancellation', {
+      p_cancellation_id: cancellation.id,
+      p_decision: 'approved',
+      p_rejection_reason: null,
+    });
 
     setProcessing(false);
-    if (err2) {
-      console.log(err2);
-      Alerts('Pembatalan disetujui tetapi gagal memperbarui status pesanan.', 'error');
-      await fetchOrder();
+    if (error) {
+      console.log(error);
+      Alerts(error.message || 'Gagal menyetujui pembatalan.', 'error');
       return;
     }
 
-    try {
-      await notifyCancellationDecisionToBuyer(String(data.buyer_id), orderId as string, true);
-    } catch (notificationError) {
-      console.log('Approve cancellation notification error', notificationError);
-    }
-
-    Alerts('Pembatalan disetujui.', 'success');
+    Alerts('Pembatalan disetujui. Refund menunggu proses admin.', 'success');
     router.replace({ pathname: 'toko/penjualan' });
   };
 
   const rejectCancellation = async () => {
-    if (processing) return;
+    if (processing || !cancellation?.id) return;
     if (!rejectReason.trim()) {
       Alerts('Tuliskan alasan penolakan.', 'info');
       return;
     }
     setProcessing(true);
 
-    const payload = {
-      seller_decision: 'rejected',
-      seller_rejection_reason: rejectReason.trim(),
-      reason: reviewReason,
-    };
-
-    let result;
-    if (cancellation?.id) {
-      result = await supabase.from('mawam_order_cancellations').update(payload).eq('id', cancellation.id);
-    } else {
-      result = await supabase.from('mawam_order_cancellations').insert({
-        order_id: data.id,
-        ...payload,
-      });
-    }
+    const { error } = await supabase.rpc('seller_decide_cancellation', {
+      p_cancellation_id: cancellation.id,
+      p_decision: 'rejected',
+      p_rejection_reason: rejectReason.trim(),
+    });
 
     setProcessing(false);
-    if (result.error) {
-      console.log(result.error);
-      Alerts('Gagal menolak pembatalan.', 'error');
+    if (error) {
+      console.log(error);
+      Alerts(error.message || 'Gagal menolak pembatalan.', 'error');
       return;
-    }
-
-    try {
-      await notifyCancellationDecisionToBuyer(String(data.buyer_id), orderId as string, false);
-    } catch (notificationError) {
-      console.log('Reject cancellation notification error', notificationError);
     }
 
     Alerts('Pengajuan pembatalan telah ditolak.', 'success');
@@ -191,18 +143,13 @@ export default function SellerCancellationDetail() {
           placeholder="Tulis alasan kenapa ditolak"
           multiline
           textAlignVertical="top"
-          style={[
-            styles.input,
-            {
-              color: Colors[scheme].text,
-            },
-          ]}
+          style={[styles.input, { color: Colors[scheme].text }]}
         />
       </ConfirmModal>
       <ConfirmModal
         visible={showApproveModal}
         title="Setujui pembatalan?"
-        message="Status pesanan akan diubah menjadi dibatalkan setelah persetujuan Anda. Pembeli akan menerima proses pembatalan sesuai ketentuan yang berlaku."
+        message="Status permintaan pembatalan akan diproses secara aman dan pembeli akan menerima notifikasi. Refund selanjutnya diproses admin."
         confirmText="Setujui"
         cancelText="Batal"
         variant="success"
@@ -246,7 +193,7 @@ export default function SellerCancellationDetail() {
           ))}
         </ThemedView>
 
-        {canRespondToCancellationRequest && (
+        {canRespondToCancellationRequest && cancellation?.id && (
           <ThemedView style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end' }}>
             <TouchableOpacity style={[styles.button, { backgroundColor: '#ffffff', borderWidth: 1, borderColor: iconColor }]} onPress={() => router.back()}>
               <ThemedText style={{ color: iconColor }}>Kembali</ThemedText>
