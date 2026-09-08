@@ -33,6 +33,50 @@ type TimelineEvent = {
   created_at?: string | null;
 };
 
+const BITESHIP_STATUS_LABELS: Record<string, string> = {
+  confirmed: "Pesanan Terkonfirmasi",
+  scheduled: "Pengiriman Terjadwal",
+  allocated: "Kurir Sudah Dialokasikan",
+  picking_up: "Kurir Menuju Lokasi Penjemputan",
+  picked: "Paket Berhasil Dijemput Kurir",
+  on_hold: "Pengiriman Ditahan Sementara",
+  dropping_off: "Kurir Sedang Mengantarkan Paket",
+  delivered: "Paket Berhasil Diterima Penerima",
+  cancelled: "Pesanan Dibatalkan",
+  return_in_transit: "Paket Sedang Dikembalikan",
+  returned: "Paket Telah Dikembalikan",
+  rejected: "Paket Ditolak",
+  disposed: "Paket Dihancurkan/Dibuang",
+  courier_not_found: "Kurir Tidak Ditemukan",
+};
+
+const BITESHIP_STATUS_NOTES: Record<string, string> = {
+  confirmed: "Pesanan siap dikonfirmasi dan nomor resi telah dibuat.",
+  scheduled: "Pesanan telah dijadwalkan untuk dikirim.",
+  allocated: "Kurir telah dialokasikan dan akan menjemput paket.",
+  picking_up: "Kurir sedang menuju lokasi untuk menjemput paket.",
+  picked: "Paket telah dijemput oleh kurir.",
+  on_hold: "Pengiriman sedang ditahan sementara karena kendala pengiriman.",
+  dropping_off: "Kurir sedang mengantarkan paket ke penerima.",
+  delivered: "Paket telah berhasil diserahkan kepada penerima.",
+  cancelled: "Pesanan telah dibatalkan.",
+  return_in_transit: "Paket sedang dalam perjalanan untuk dikembalikan kepada pengirim.",
+  returned: "Paket telah dikembalikan kepada pengirim.",
+  rejected: "Paket ditolak dalam proses pengiriman.",
+  disposed: "Paket telah dihancurkan atau dibuang.",
+  courier_not_found: "Kurir yang tersedia belum berhasil ditemukan.",
+};
+
+const getBiteshipStatusLabel = (status?: string | null) => {
+  const key = String(status ?? "").trim().toLowerCase();
+  return BITESHIP_STATUS_LABELS[key] ?? (status ? `Status pengiriman: ${status}` : "Pembaruan pengiriman");
+};
+
+const getBiteshipStatusNote = (status?: string | null, fallback?: string | null) => {
+  const key = String(status ?? "").trim().toLowerCase();
+  return BITESHIP_STATUS_NOTES[key] ?? fallback ?? null;
+};
+
 const formatDateTime = (value?: string) => {
   if (!value) return "Waktu belum tersedia";
   const date = new Date(value);
@@ -153,17 +197,26 @@ export default function LacakPesananScreen() {
 
   const events = getEvents(tracking);
   const latestLocation = locationHistory[0];
-  const deliveryStatus = latestLocation?.status ?? tracking?.status ?? tracking?.tracking_status ?? tracking?.latest_status ?? "Status belum tersedia";
+  const latestBiteshipStatus = String(shipment?.biteship_status ?? tracking?.status ?? tracking?.tracking_status ?? tracking?.latest_status ?? "").trim();
+  const deliveryStatus = latestLocation?.status?.startsWith("Biteship:")
+    ? getBiteshipStatusLabel(latestLocation.status.replace(/^Biteship:\s*/i, ""))
+    : latestLocation?.status ?? getBiteshipStatusLabel(latestBiteshipStatus);
   const waybill = shipment?.tracking_number ?? shipment?.resi;
 
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
-    const shipmentEvents: TimelineEvent[] = locationHistory.map((event) => ({
-      id: String(event.id),
-      status: String(event.status ?? "Pembaruan pengiriman"),
-      catatan: event.catatan,
-      location: event.drop_point && event.kota ? `${event.drop_point}, ${event.kota}` : event.drop_point ?? event.kota ?? null,
-      created_at: event.created_at,
-    }));
+    const shipmentEvents: TimelineEvent[] = locationHistory.map((event) => {
+      const rawStatus = String(event.status ?? "Pembaruan pengiriman");
+      const isBiteship = rawStatus.toLowerCase().startsWith("biteship:");
+      const biteshipStatus = isBiteship ? rawStatus.replace(/^Biteship:\s*/i, "").trim() : null;
+
+      return {
+        id: String(event.id),
+        status: isBiteship ? getBiteshipStatusLabel(biteshipStatus) : rawStatus,
+        catatan: isBiteship ? getBiteshipStatusNote(biteshipStatus, event.catatan) : event.catatan,
+        location: event.drop_point && event.kota ? `${event.drop_point}, ${event.kota}` : event.drop_point ?? event.kota ?? null,
+        created_at: event.created_at,
+      };
+    });
 
     if (order?.created_at) {
       shipmentEvents.push({
@@ -272,8 +325,9 @@ export default function LacakPesananScreen() {
               <View key={`${event.updated_at ?? event.created_at ?? event.date ?? index}-${index}`} style={styles.event}>
                 <View style={styles.timeline}><View style={[styles.dot, { backgroundColor: index === 0 ? tint : iconColor }]} />{index < events.length - 1 && <View style={styles.line} />}</View>
                 <View style={styles.flex}>
-                  <ThemedText style={{ fontWeight: "700" }}>{event.status ?? event.note ?? event.description ?? "Pembaruan pengiriman"}</ThemedText>
+                  <ThemedText style={{ fontWeight: "700" }}>{getBiteshipStatusLabel(event.status ?? event.note ?? event.description)}</ThemedText>
                   {event.location && <ThemedText style={styles.muted}>{event.location}</ThemedText>}
+                  {event.status && <ThemedText style={styles.muted}>{getBiteshipStatusNote(event.status, event.note ?? event.description)}</ThemedText>}
                   {(event.updated_at ?? event.created_at ?? event.date ?? event.time) && <ThemedText style={styles.muted}>{formatDateTime(event.updated_at ?? event.created_at ?? event.date ?? event.time)}</ThemedText>}
                 </View>
               </View>
