@@ -4,7 +4,6 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Leaflet does not resolve its marker assets automatically in Expo/Vite web builds.
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -27,31 +26,19 @@ function FitRoute({ positions }: { positions: [number, number][] }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!positions.length) return;
-
     if (positions.length === 1) {
       map.setView(positions[0], 15);
       return;
     }
-
-    map.fitBounds(L.latLngBounds(positions), {
-      padding: [30, 30],
-      maxZoom: 15,
-    });
+    map.fitBounds(L.latLngBounds(positions), { padding: [30, 30], maxZoom: 15 });
   }, [map, positions]);
 
   return null;
 }
 
-export default function ShipmentHistoryMap({
-  locations,
-}: {
-  locations: LocationHistory[];
-}) {
+export default function ShipmentHistoryMap({ locations }: { locations: LocationHistory[] }) {
   const validLocations = locations.filter(
-    (item) =>
-      Number.isFinite(Number(item.latitude)) &&
-      Number.isFinite(Number(item.longitude))
+    (item) => Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude))
   );
 
   if (!validLocations.length) return null;
@@ -66,37 +53,29 @@ export default function ShipmentHistoryMap({
         center={positions[positions.length - 1]}
         zoom={13}
         scrollWheelZoom
-        style={styles.map}
+        style={styles.map as any}
       >
         <TileLayer
-          attribution="&copy; x.code"
-          url="http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+          attribution="&copy; Google Maps"
+          url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
           subdomains={["mt0", "mt1", "mt2", "mt3"]}
-          maxZoom={25}
+          maxZoom={20}
         />
 
         <FitRoute positions={positions} />
 
         {positions.length > 1 && (
-          <Polyline
-            positions={positions}
-            pathOptions={{ weight: 5, opacity: 0.85 }}
-          />
+          <Polyline positions={positions} pathOptions={{ weight: 5, opacity: 0.85 }} />
         )}
 
         {validLocations.map((location, index) => (
-          <Marker
-            key={String(location.id)}
-            position={positions[index]}
-          >
+          <Marker key={String(location.id)} position={positions[index]}>
             <Popup>
               <div>
                 <strong>{location.drop_point || "Lokasi pengiriman"}</strong>
                 {location.kota ? <div>{location.kota}</div> : null}
                 {location.status ? <div>{location.status}</div> : null}
-                {location.created_at ? (
-                  <div>{new Date(location.created_at).toLocaleString("id-ID")}</div>
-                ) : null}
+                {location.created_at ? <div>{new Date(location.created_at).toLocaleString("id-ID")}</div> : null}
                 {location.catatan ? <div>{location.catatan}</div> : null}
               </div>
             </Popup>
@@ -110,6 +89,8 @@ export default function ShipmentHistoryMap({
 const styles = StyleSheet.create({
   container: {
     marginTop: 12,
+    width: "100%",
+    height: 320,
     overflow: "hidden",
     borderRadius: 12,
   },
@@ -117,6 +98,5 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 320,
     borderRadius: 12,
-    border: "1px solid #6d6d6d6e",
-  } as any,
+  },
 });
