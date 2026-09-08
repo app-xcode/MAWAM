@@ -70,8 +70,13 @@ function normalizeCourierType(type: unknown) {
 }
 
 export async function createDraftOrder(payload: any) {
+  const referenceId = payload?.reference_id
+    ? `${payload.reference_id}-${Date.now()}`
+    : `mawam-${Date.now()}`;
+
   const draftPayload = {
     ...payload,
+    reference_id: referenceId,
     courier_type: normalizeCourierType(payload?.courier_type),
     draft: true,
   };
