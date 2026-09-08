@@ -150,21 +150,34 @@ function ShipmentRoadMap({
           />
         )}
 
-        {locations.map((location, index) => (
-          <Marker key={String(location.id)} position={positions[index]}>
-            <Popup>
-              <div>
-                <strong>{location.drop_point || "Lokasi pengiriman"}</strong>
-                {location.kota ? <div>{location.kota}</div> : null}
-                {location.status ? <div>{location.status}</div> : null}
-                {location.created_at ? (
-                  <div>{new Date(location.created_at).toLocaleString("id-ID")}</div>
-                ) : null}
-                {location.catatan ? <div>{location.catatan}</div> : null}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {locations.map((location, index) => {
+          // Lokasi pertama = 0.3, lokasi terakhir = 1.
+          // Titik di antaranya mendapatkan opacity bertahap sesuai urutan perjalanan.
+          const opacity =
+            locations.length === 1
+              ? 1
+              : 0.3 + (index / (locations.length - 1)) * 0.7;
+
+          return (
+            <Marker
+              key={String(location.id)}
+              position={positions[index]}
+              opacity={opacity}
+            >
+              <Popup>
+                <div>
+                  <strong>{location.drop_point || "Lokasi pengiriman"}</strong>
+                  {location.kota ? <div>{location.kota}</div> : null}
+                  {location.status ? <div>{location.status}</div> : null}
+                  {location.created_at ? (
+                    <div>{new Date(location.created_at).toLocaleString("id-ID")}</div>
+                  ) : null}
+                  {location.catatan ? <div>{location.catatan}</div> : null}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
 
       {positions.length > 1 && !routeError && route.length < 2 && (
