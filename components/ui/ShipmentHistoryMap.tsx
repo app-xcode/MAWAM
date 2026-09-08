@@ -1,13 +1,10 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
-import { ThemedText } from "@/components/themed-text";
+import { View } from "react-native";
 
 type LocationHistory = {
   id: string;
   latitude: number | null;
   longitude: number | null;
-  kota?: string | null;
-  drop_point?: string | null;
 };
 
 export default function ShipmentHistoryMap({
@@ -15,29 +12,7 @@ export default function ShipmentHistoryMap({
 }: {
   locations: LocationHistory[];
 }) {
-  const count = locations.filter(
-    (item) =>
-      Number.isFinite(Number(item.latitude)) &&
-      Number.isFinite(Number(item.longitude))
-  ).length;
-
-  if (!count) return null;
-
-  return (
-    <View style={styles.webNotice}>
-      <ThemedText>
-        Peta riwayat perjalanan tersedia di aplikasi seluler.
-        Riwayat lokasi ditampilkan di bawah.
-      </ThemedText>
-    </View>
-  );
+  // Peta riwayat perjalanan hanya dirender pada web melalui
+  // ShipmentHistoryMap.web.tsx. Pada native, komponen ini tidak menampilkan apa pun.
+  return <View />;
 }
-
-const styles = StyleSheet.create({
-  webNotice: {
-    marginTop: 12,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: "#8882",
-  },
-});
