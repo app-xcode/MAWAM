@@ -31,7 +31,7 @@ function FitRoute({ positions }: { positions: LatLng[] }) {
   return null;
 }
 
-function createLocationIcon(opacity: number, saturate: number, isLast: boolean) {
+function createLocationIcon(saturate: number, isLast: boolean) {
   const size = isLast ? 32 : 28;
   const borderWidth = isLast ? 3 : 2;
 
@@ -46,8 +46,8 @@ function createLocationIcon(opacity: number, saturate: number, isLast: boolean) 
         height:${size}px;
         border-radius:50% 50% 50% 0;
         transform:rotate(-45deg);
-        background:rgba(37, 99, 235, ${opacity});
-        border:${borderWidth}px solid rgba(255, 255, 255, ${Math.min(1, opacity + 0.15)});
+        background:rgba(37, 99, 235);
+        border:${borderWidth}px solid rgba(255, 255, 255);
         box-sizing:border-box;
         box-shadow:0 2px 6px rgba(0,0,0,0.28);
         filter:saturate(${saturate});
@@ -59,7 +59,7 @@ function createLocationIcon(opacity: number, saturate: number, isLast: boolean) 
           width:${isLast ? 9 : 7}px;
           height:${isLast ? 9 : 7}px;
           border-radius:50%;
-          background:rgba(255,255,255,${Math.min(1, opacity + 0.2)});
+          background:rgba(255,255,255);
           transform:rotate(45deg);
         "></div>
       </div>
@@ -173,25 +173,20 @@ function ShipmentRoadMap({
             positions={displayedRoute}
             pathOptions={{
               weight: 5,
-              opacity: route.length > 1 ? 0.9 : 0.65,
+              opacity: route.length > 1 ? 0.9 : 0.8,
               ...(route.length < 2 && routeError ? { dashArray: "8 8" } : {}),
             }}
           />
         )}
 
         {locations.map((location, index) => {
-          const opacity =
-            locations.length === 1
-              ? 1
-              : 0.3 + (index / (locations.length - 1)) * 0.7;
-
           const saturate =
             locations.length === 1
               ? 1
-              : 0.35 + (index / (locations.length - 1)) * 0.65;
+              : 0.2 + (index / (locations.length - 1)) * 0.8;
 
           const isLast = index === locations.length - 1;
-          const icon = createLocationIcon(opacity, saturate, isLast);
+          const icon = createLocationIcon(saturate, isLast);
 
           return (
             <Marker
