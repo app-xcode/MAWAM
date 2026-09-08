@@ -27,7 +27,7 @@ export async function getRates(payload: any) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body:JSON.stringify(payload)
+      body: JSON.stringify(payload)
       // body: JSON.stringify({
       //   origin_postal_code: payload.origin_postal_code,
       //   origin_country_id: "ID",
@@ -56,20 +56,33 @@ export async function getLocations(keyword: string) {
   return await parseBiteshipResponse(res);
 }
 
+function normalizeCourierType(type: unknown) {
+  const value = String(type ?? "").trim();
+  if (!value) return value;
+
+  const normalized = value.toUpperCase();
+  const aliases: Record<string, string> = {
+    REGULER: "REG",
+    REGULAR: "REG",
+  };
+
+  return aliases[normalized] ?? normalized;
+}
+
 export async function createDraftOrder(payload: any) {
+  const draftPayload = {
+    ...payload,
+    courier_type: normalizeCourierType(payload?.courier_type),
+    draft: true,
+  };
+
   const res = await fetch(`${V1_BASE_URL}/draft_orders`, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      ...payload,
-      draft: true,
-    }),
+    body: JSON.stringify(draftPayload),
   });
 
-  console.log({
-      ...payload,
-      draft: true,
-    });
+  console.log(draftPayload);
   console.log(res);
 
   return await parseBiteshipResponse(res);
@@ -92,7 +105,6 @@ export async function confirmDraftOrder(draftOrderId: string) {
 }
 
 export async function getTracking(courier: string, waybill: string) {
-
   const res = await fetch(`${V1_BASE_URL}/trackings/${waybill}`, {
     headers: {
       Authorization: API_KEY!,
