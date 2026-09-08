@@ -4,13 +4,6 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
 type LocationHistory = {
   id: string;
   latitude: number | null;
@@ -36,6 +29,42 @@ function FitRoute({ positions }: { positions: LatLng[] }) {
   }, [map, positions]);
 
   return null;
+}
+
+function createLocationIcon(opacity: number, saturate: number, isLast: boolean) {
+  const size = isLast ? 32 : 28;
+  const borderWidth = isLast ? 3 : 2;
+
+  return L.divIcon({
+    className: "mawam-shipment-marker",
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size + 4],
+    html: `
+      <div style="
+        width:${size}px;
+        height:${size}px;
+        border-radius:50% 50% 50% 0;
+        transform:rotate(-45deg);
+        background:rgba(37, 99, 235, ${opacity});
+        border:${borderWidth}px solid rgba(255, 255, 255, ${Math.min(1, opacity + 0.15)});
+        box-sizing:border-box;
+        box-shadow:0 2px 6px rgba(0,0,0,0.28);
+        filter:saturate(${saturate});
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      ">
+        <div style="
+          width:${isLast ? 9 : 7}px;
+          height:${isLast ? 9 : 7}px;
+          border-radius:50%;
+          background:rgba(255,255,255,${Math.min(1, opacity + 0.2)});
+          transform:rotate(45deg);
+        "></div>
+      </div>
+    `,
+  });
 }
 
 export default function ShipmentHistoryMap({ locations }: { locations: LocationHistory[] }) {
@@ -151,18 +180,24 @@ function ShipmentRoadMap({
         )}
 
         {locations.map((location, index) => {
-          // Lokasi pertama = 0.3, lokasi terakhir = 1.
-          // Titik di antaranya mendapatkan opacity bertahap sesuai urutan perjalanan.
           const opacity =
             locations.length === 1
               ? 1
               : 0.3 + (index / (locations.length - 1)) * 0.7;
 
+          const saturate =
+            locations.length === 1
+              ? 1
+              : 0.35 + (index / (locations.length - 1)) * 0.65;
+
+          const isLast = index === locations.length - 1;
+          const icon = createLocationIcon(opacity, saturate, isLast);
+
           return (
             <Marker
               key={String(location.id)}
               position={positions[index]}
-              opacity={opacity}
+              icon={icon}
             >
               <Popup>
                 <div>
