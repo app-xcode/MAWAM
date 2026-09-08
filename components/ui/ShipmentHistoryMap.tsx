@@ -28,11 +28,9 @@ function FitRoute({ positions }: { positions: [number, number][] }) {
   const map = useMap();
 
   useEffect(() => {
-    if (positions.length === 0) {
-      map.setView(DEFAULT_CENTER, 13);
-    } else if (positions.length === 1) {
+    if (positions.length === 1) {
       map.setView(positions[0], 15);
-    } else {
+    } else if (positions.length > 1) {
       map.fitBounds(L.latLngBounds(positions), { padding: [30, 30], maxZoom: 15 });
     }
   }, [map, positions]);
@@ -44,6 +42,9 @@ export default function ShipmentHistoryMap({ locations }: { locations: LocationH
   const validLocations = locations.filter(
     (item) => Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude))
   );
+
+  // Jangan tampilkan peta jika belum ada satu pun koordinat perjalanan.
+  if (validLocations.length === 0) return null;
 
   const positions = validLocations.map(
     (item) => [Number(item.latitude), Number(item.longitude)] as [number, number]
@@ -84,13 +85,6 @@ export default function ShipmentHistoryMap({ locations }: { locations: LocationH
           </Marker>
         ))}
       </MapContainer>
-      {validLocations.length === 0 && (
-        <View pointerEvents="none" style={styles.emptyOverlay}>
-          <View style={styles.emptyBadge}>
-            <span style={{ fontSize: 12 }}>Belum ada titik koordinat perjalanan</span>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
@@ -108,18 +102,5 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 320,
     borderRadius: 12,
-  },
-  emptyOverlay: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    top: 12,
-    alignItems: "center",
-  },
-  emptyBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "#ffffffdd",
   },
 });
