@@ -40,7 +40,11 @@ function FitRoute({ positions }: { positions: [number, number][] }) {
 
 export default function ShipmentHistoryMap({ locations }: { locations: LocationHistory[] }) {
   const validLocations = locations.filter(
-    (item) => Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude))
+    (item) =>
+      item.latitude != null &&
+      item.longitude != null &&
+      Number.isFinite(Number(item.latitude)) &&
+      Number.isFinite(Number(item.longitude))
   );
 
   // Jangan tampilkan peta jika belum ada satu pun koordinat perjalanan.
@@ -59,7 +63,7 @@ export default function ShipmentHistoryMap({ locations }: { locations: LocationH
         style={styles.map as any}
       >
         <TileLayer
-          attribution="&copy; Google Maps"
+          attribution="&copy; x.code"
           url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
           subdomains={["mt0", "mt1", "mt2", "mt3"]}
           maxZoom={20}
