@@ -103,8 +103,6 @@ async function handleWebhook(req: Request, body: any) {
 
   const shipment = await findShipment(orderId);
   if (!shipment) {
-    // Biteship may retry an event before MAWAM has stored the order id.
-    // Return 200 so the webhook is not retried forever for an unknown shipment.
     return jsonResponse({ success: true, ignored: true, reason: "shipment_not_found", order_id: orderId });
   }
 
@@ -135,8 +133,6 @@ async function handleWebhook(req: Request, body: any) {
     if (error) throw error;
   }
 
-  // Keep a human-readable shipment history, but do not overwrite MAWAM's
-  // agent workflow status (Diterima agen, Tiba di drop point, etc.).
   if (event === "order.status" && historyStatus && shipment.biteship_status !== String(historyStatus)) {
     const note = data?.note ?? data?.courier?.note ?? `Status Biteship diperbarui menjadi ${historyStatus}.`;
     const { error } = await admin.from("mawam_pengiriman_lokasi").insert({
@@ -243,10 +239,20 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, message: "Method tidak diizinkan." }, 405);
     }
 
-    const body = await req.json();
+    // Biteship validates a newly installed webhook by sending an empty
+    // application/json POST. Accept it with 200 OK before parsing JSON.
+    const rawBody = await req.text();
+    if (!rawBody.trim()) {
+      return jsonResponse({ success: true, validation: true });
+    }
 
-    // Biteship webhook payloads use `event`, while the existing MAWAM API
-    // uses `type`. Handle webhooks before the internal API switch.
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return jsonResponse({ success: false, message: "Body JSON tidak valid." }, 400);
+    }
+
     if (body?.event === "order.status" || body?.event === "order.waybill_id" || body?.event === "order.price") {
       return await handleWebhook(req, body);
     }
