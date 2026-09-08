@@ -283,7 +283,7 @@ export default function ModalScreen() {
             if (validation?.valid !== true) {
                 await removeTempImage(tempPath);
                 tempPath = null;
-                Alerts('Gambar Tidak Valid', 'Gambar yang diupload bukan gambar bawang merah. Silakan pilih gambar bawang merah yang sesuai.', 'error');
+                Alerts('Gambar Tidak Valid: Gambar yang diupload bukan gambar bawang merah. Silakan pilih gambar bawang merah yang sesuai.', 'error');
                 return;
             }
 
@@ -314,11 +314,11 @@ export default function ModalScreen() {
             }
 
             tempPath = null;
-            Alerts('Gambar Valid', 'Gambar bawang merah berhasil diperiksa dan diterima.', 'success');
+            Alerts('Gambar Valid: Gambar bawang merah berhasil diperiksa dan diterima.', 'success');
         } catch (error) {
             console.log('handlePickAndUpload error:', error);
             if (tempPath) await removeTempImage(tempPath);
-            Alerts('Validasi Gambar Gagal', error instanceof Error ? error.message : 'Gambar gagal diperiksa. Silakan coba lagi.', 'error');
+            Alerts('Validasi Gambar Gagal: ' + (error instanceof Error ? error.message : 'Gambar gagal diperiksa. Silakan coba lagi.'), 'error');
         } finally {
             setLoadingUI(false);
             setProcessing(false);
@@ -336,7 +336,7 @@ export default function ModalScreen() {
             return;
         }
         if (!isEdit && !primaryImageValid) {
-            Alerts('Gambar Produk Wajib', 'Silakan pilih gambar bawang merah yang valid terlebih dahulu.', 'error');
+            Alerts('Gambar Produk Wajib: Silakan pilih gambar bawang merah yang valid terlebih dahulu.', 'error');
             return;
         }
 
@@ -348,17 +348,13 @@ export default function ModalScreen() {
             movedPaths = newImage.filter(item => item?.finalPath).map(item => item.finalPath);
 
             if (imageDelete) {
-                for (const item of imageDelete) {
-                    await deleteImage(item);
-                }
+                for (const item of imageDelete) await deleteImage(item);
             }
 
             const gambar = up?.[0] || (isEdit ? form.gambar_produk : null);
             const albums = up?.slice(1) || (isEdit ? form.album : []);
 
-            if (!gambar && !isEdit) {
-                throw new Error('Gambar produk belum tersedia.');
-            }
+            if (!gambar && !isEdit) throw new Error('Gambar produk belum tersedia.');
 
             const { data: toko, error: tokoError } = await supabase
                 .from('mawam_toko')
@@ -368,12 +364,7 @@ export default function ModalScreen() {
 
             if (tokoError || !toko) throw new Error('Toko tidak ditemukan.');
 
-            const payload = {
-                ...form,
-                toko_id: toko.id,
-                gambar_produk: gambar,
-                album: albums,
-            };
+            const payload = { ...form, toko_id: toko.id, gambar_produk: gambar, album: albums };
 
             const { data, error } = isEdit
                 ? await supabase.from('mawam_produk').update(payload).eq('id', id).select().single()
@@ -401,10 +392,18 @@ export default function ModalScreen() {
             for (const path of movedPaths) {
                 try { await supabase.storage.from(STORAGE_BUCKET).remove([path]); } catch { }
             }
-            Alerts('Gagal menyimpan data', error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan data.');
+            Alerts('Gagal menyimpan data: ' + (error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan data.'), 'error');
         } finally {
             setSubmitForm(false);
         }
+    };
+
+    const handleCancel = async () => {
+        for (const item of newImage) {
+            if (item?.tempPath) await removeTempImage(item.tempPath);
+        }
+        setnewImage([]);
+        router.back();
     };
 
     useEffect(() => {
@@ -583,7 +582,7 @@ export default function ModalScreen() {
                     <ThemedInput label={<ThemedText style={styles.label}>Deskripsi</ThemedText>} placeholder="Tulis Deskripsi..." value={form.deskripsi} onChangeText={(text: string) => setForm({ ...form, deskripsi: text })} style={[styles.input, { height: 100, textAlignVertical: 'top' }]} multiline />
 
                     <ThemedView style={{ flexDirection: 'row', gap: '1%', justifyContent: 'center', alignItems: 'center', paddingBottom: 10, borderRadius: 10, marginTop: 2 }}>
-                        <TouchableOpacity style={[{ width: '48%' }, styles.button]} onPress={() => router.back()}>
+                        <TouchableOpacity style={[{ width: '48%' }, styles.button]} onPress={handleCancel}>
                             <ThemedText style={styles.buttonText}>Batal</ThemedText>
                         </TouchableOpacity>
                         <TouchableOpacity
