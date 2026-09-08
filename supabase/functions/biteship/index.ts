@@ -36,7 +36,7 @@ function getWaybillId(data: any) {
 }
 
 function getPrice(data: any) {
-  const value = data?.price ?? data?.shipping_price ?? data?.courier?.price ?? null;
+  const value = data?.price ?? data?.order_price ?? data?.shipping_price ?? data?.courier?.price ?? null;
   if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -59,9 +59,11 @@ async function verifyWebhook(req: Request) {
 async function findShipment(orderId: string) {
   if (!admin || !orderId) return null;
 
+  const select = "id,order_id,seller_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price";
+
   const byBiteship = await admin
     .from("mawam_pengiriman")
-    .select("id,order_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price")
+    .select(select)
     .eq("biteship_order_id", orderId)
     .limit(1)
     .maybeSingle();
@@ -71,7 +73,7 @@ async function findShipment(orderId: string) {
 
   const byDraft = await admin
     .from("mawam_pengiriman")
-    .select("id,order_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price")
+    .select(select)
     .eq("biteship_draft_id", orderId)
     .limit(1)
     .maybeSingle();
@@ -139,7 +141,7 @@ async function handleWebhook(req: Request, body: any) {
       pengiriman_id: shipment.id,
       status: `Biteship: ${String(historyStatus)}`,
       catatan: String(note),
-      updated_by: null,
+      updated_by: shipment.seller_id,
     });
 
     if (error) throw error;
@@ -239,8 +241,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, message: "Method tidak diizinkan." }, 405);
     }
 
-    // Biteship validates a newly installed webhook by sending an empty
-    // application/json POST. Accept it with 200 OK before parsing JSON.
     const rawBody = await req.text();
     if (!rawBody.trim()) {
       return jsonResponse({ success: true, validation: true });
