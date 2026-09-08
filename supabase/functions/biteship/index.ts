@@ -59,7 +59,7 @@ async function verifyWebhook(req: Request) {
 async function findShipment(orderId: string) {
   if (!admin || !orderId) return null;
 
-  const select = "id,order_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price,origin,destination";
+  const select = "id,order_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price,biteship_actual_cost,origin,destination";
 
   const byBiteship = await admin
     .from("mawam_pengiriman")
@@ -144,9 +144,11 @@ async function handleWebhook(req: Request, body: any) {
     patch.tracking_number = String(waybill);
   }
 
+  // order.price adalah biaya aktual Biteship. Jangan pernah menimpa
+  // shipping_cost karena kolom tersebut menyimpan ongkir yang dibayar buyer.
+  // Jangan mengubah mawam_orders.shipping maupun mawam_orders.total.
   if (event === "order.price" && price !== null) {
-    patch.shipping_cost = price;
-    patch.draft_price = price;
+    patch.biteship_actual_cost = price;
   }
 
   if (Object.keys(patch).length) {
