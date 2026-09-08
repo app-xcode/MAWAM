@@ -511,10 +511,12 @@ export default function ModalScreen() {
                     <View style={{ flexDirection: 'row', height: 40, marginBottom: 0, justifyContent: 'space-between' }}>
                         <ThemedText style={styles.label}>Gambar Produk</ThemedText>
                         {loadingUI ? (
-                            <ThemedView style={{ padding: 4, borderRadius: 8, backgroundColor: iconBg, borderWidth: 1, borderColor: iconColor, marginRight: 8, justifyContent: 'space-between', flexDirection: 'row', gap: 2, alignItems: 'center' }}>
-                                <ActivityIndicator size="small" color={iconColor} />
-                                <ThemedText>Memeriksa</ThemedText>
-                            </ThemedView>
+                            <View>
+                                <ThemedView style={{ padding: 4, borderRadius: 8, backgroundColor: iconBg, borderWidth: 1, borderColor: iconColor, marginRight: 8, justifyContent: 'space-between', flexDirection: 'row', gap: 2, alignItems: 'center' }}>
+                                    <ActivityIndicator size="small" color={iconColor} />
+                                    <ThemedText>Memeriksa</ThemedText>
+                                </ThemedView>
+                            </View>
                         ) : (
                             <TouchableOpacity onPress={() => handlePickAndUpload(imageUploads[0] === imageDefault ? 0 : -1)}>
                                 <ThemedView style={{ padding: 4, borderRadius: 8, backgroundColor: iconBg, borderWidth: 1, borderColor: iconColor, marginRight: 8, justifyContent: 'space-between', flexDirection: 'row', gap: 1, alignItems: 'center' }}>
