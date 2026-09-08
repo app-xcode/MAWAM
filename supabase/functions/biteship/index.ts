@@ -59,7 +59,7 @@ async function verifyWebhook(req: Request) {
 async function findShipment(orderId: string) {
   if (!admin || !orderId) return null;
 
-  const select = "id,order_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price";
+  const select = "id,order_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price,origin,destination";
 
   const byBiteship = await admin
     .from("mawam_pengiriman")
@@ -93,6 +93,16 @@ async function getOrderSellerId(orderId: string) {
 
   if (error) throw error;
   return data?.seller_id ?? null;
+}
+
+function historyLocation(shipment: any) {
+  const origin = typeof shipment?.origin === "string" ? shipment.origin.trim() : "";
+  const destination = typeof shipment?.destination === "string" ? shipment.destination.trim() : "";
+
+  return {
+    kota: origin || "Lokasi pengiriman",
+    drop_point: origin || destination || "Proses Biteship",
+  };
 }
 
 async function handleWebhook(req: Request, body: any) {
@@ -158,8 +168,11 @@ async function handleWebhook(req: Request, body: any) {
     }
 
     const note = data?.note ?? data?.courier?.note ?? `Status Biteship diperbarui menjadi ${historyStatus}.`;
+    const location = historyLocation(shipment);
     const { error } = await admin.from("mawam_pengiriman_lokasi").insert({
       pengiriman_id: shipment.id,
+      kota: location.kota,
+      drop_point: location.drop_point,
       status: `Biteship: ${String(historyStatus)}`,
       catatan: String(note),
       updated_by: sellerId,
