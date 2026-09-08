@@ -12,7 +12,7 @@ begin
     status = 'cancelled',
     cancellation_reason = 'Pembayaran kedaluwarsa dan pesanan dibatalkan otomatis oleh sistem.',
     cancelled_by = 'system',
-    cancellation_status = 'cancelled',
+    cancellation_status = 'none',
     updated_at = now()
   from public.mawam_payments p
   where o.payment_id = p.id
