@@ -59,7 +59,7 @@ async function verifyWebhook(req: Request) {
 async function findShipment(orderId: string) {
   if (!admin || !orderId) return null;
 
-  const select = "id,order_id,seller_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price";
+  const select = "id,order_id,biteship_order_id,biteship_draft_id,biteship_status,tracking_number,shipping_cost,draft_price";
 
   const byBiteship = await admin
     .from("mawam_pengiriman")
@@ -80,6 +80,19 @@ async function findShipment(orderId: string) {
 
   if (byDraft.error) throw byDraft.error;
   return byDraft.data;
+}
+
+async function getOrderSellerId(orderId: string) {
+  if (!admin || !orderId) return null;
+
+  const { data, error } = await admin
+    .from("mawam_orders")
+    .select("seller_id")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.seller_id ?? null;
 }
 
 async function handleWebhook(req: Request, body: any) {
@@ -136,12 +149,20 @@ async function handleWebhook(req: Request, body: any) {
   }
 
   if (event === "order.status" && historyStatus && shipment.biteship_status !== String(historyStatus)) {
+    const sellerId = await getOrderSellerId(shipment.order_id);
+    if (!sellerId) {
+      return jsonResponse({
+        success: false,
+        message: "Seller ID order tidak ditemukan untuk mencatat riwayat webhook.",
+      }, 400);
+    }
+
     const note = data?.note ?? data?.courier?.note ?? `Status Biteship diperbarui menjadi ${historyStatus}.`;
     const { error } = await admin.from("mawam_pengiriman_lokasi").insert({
       pengiriman_id: shipment.id,
       status: `Biteship: ${String(historyStatus)}`,
       catatan: String(note),
-      updated_by: shipment.seller_id,
+      updated_by: sellerId,
     });
 
     if (error) throw error;
