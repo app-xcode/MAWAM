@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/themed-text'
 import { ThemedView } from '@/components/themed-view'
 import { BackgroundImage } from '@/components/ui/background-image'
 import { CustomSelect } from '@/components/ui/CustomSelect'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { ImageLoad } from '@/components/ui/Imageload'
 import Alerts from '@/constants/Alerts'
 import { formatRupiah, rupiah } from '@/constants/rupiah'
@@ -13,15 +14,17 @@ import { useAuth } from '@/utils/auth'
 import { produkCache } from '@/utils/cache'
 import { useTheme } from '@/utils/theme'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { Image } from 'expo-image'
 import * as ImageManipulator from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 import { Stack, router, useLocalSearchParams } from 'expo-router'
-import React, { useEffect, useState } from 'react'
-import { ActivityIndicator, Platform, StyleSheet, TouchableOpacity, View } from 'react-native'
+import React, { useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
+import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel'
+import { opacity } from 'react-native-reanimated/lib/typescript/Colors'
 const ColorDark = Colors['light'].tint;
 const ColorLight = Colors['dark'].tint;
+const width = Dimensions.get('window').width;
 
 export default function ModalScreen() {
     const { user } = useAuth();
@@ -38,10 +41,15 @@ export default function ModalScreen() {
     const border = Colors[colorScheme].border;
     const bgColor = Colors[colorScheme].inputBg;
     const textColor = Colors[colorScheme].text;
-    const gambarDefault = 'https://cros-image.vercel.app/?quest=https://mawam.expo.app/kosong.webp';
-    const [imageUpload, setImageUpload] = useState<any>(gambarDefault);
+    const imageDefault = 'https://cros-image.vercel.app/?quest=https://mawam.expo.app/kosong.webp';
+    const [imageUploads, setImageUploads] = useState<string[]>([imageDefault]);
+    const [imageDelete, setImageDelete] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
     const [initialForm, setInitialForm] = useState<any>(null);
+    const [active, setActive] = useState(0);
+    const carouselRef = useRef<ICarouselInstance>(null);
+    const [isAutoPlay, setIsAutoPlay] = useState(true);
+    const [pendingImageDelete, setPendingImageDelete] = useState<string | null>(null);
 
     const selectS = StyleSheet.create({ button: { backgroundColor: bgColor, borderColor: border, padding: 10, marginBottom: 12, height: 40 }, buttonText: { color: textColor }, overlay: { backgroundColor: bgColor + '71', width: 500, maxWidth: '100%', alignSelf: 'center' }, item: { borderColor: border, backgroundColor: textColor }, itemText: { color: bgColor, textAlign: 'center', fontWeight: 'bold' } })
 
@@ -51,16 +59,45 @@ export default function ModalScreen() {
         }
     }, [user]);
 
-    const [form, setForm] = useState({
+    useEffect(() => {
+        setTimeout(() => {
+            goToIndex(imageUploads.length - 1);
+            setIsAutoPlay(true);
+        }, 500);
+    }, [imageUploads]);
+
+    const goToIndex = (targetIndex: number) => {
+        carouselRef.current?.scrollTo({
+            index: targetIndex,
+            animated: true // Set false jika ingin instan tanpa efek geser
+        });
+    };
+
+    interface FormState {
+        toko_id: number | null;
+        nama_produk: string;
+        harga: string;
+        stok: number;
+        satuan: string;
+        discount: number;
+        berat_per_unit: number;
+        deskripsi: string;
+        gambar_produk: string;
+        album: string[];
+    }
+
+
+    const [form, setForm] = useState<FormState>({
         toko_id: null,
         nama_produk: '',
         harga: '',
-        stok: '',
+        stok: 0,
         satuan: 'kg',
         discount: 0,
-        berat_per_unit: '',
+        berat_per_unit: 0,
         deskripsi: '',
         gambar_produk: '',
+        album: [],
     });
 
     useEffect(() => {
@@ -138,7 +175,44 @@ export default function ModalScreen() {
         return null;
     };
 
-    const uploadImage = async (image: any) => {
+    const uploadImages = async (newImages: any[]) => {
+        const ups = [];
+        if (isEdit) {
+            let fg = [form.gambar_produk, ...form.album];
+            if (newImages) {
+                for (const item of newImages) {
+                    const u = await uploadImage(item, item == fg[0] ? 'produk' : 'album');
+                    if (u) {
+                        item.old && deleteImage(item.old);
+                        fg = fg.map(fil => {
+                            if (fil == item.old) {
+                                return u
+                            } else {
+                                return fil
+                            }
+                        });
+                        if(!fg.includes(u)){
+                            fg.push(u)
+                        }
+                    }
+                }
+            }
+            fg = fg.filter(fil => !imageDelete.includes(fil));
+            fg.length && fg.forEach(item => {
+                ups.push(item)
+            })
+        } else {
+            for (const item of newImages) {
+                const u = await uploadImage(item);
+                if (u) {
+                    ups.push(u)
+                }
+            }
+        }
+        return ups;
+    }
+
+    const uploadImage = async (image: any, name: string = "produk") => {
         const response = await fetch(image.uri);
         const arrayBuffer = await response.arrayBuffer();
         image.mimeType = 'image/webp';
@@ -149,7 +223,7 @@ export default function ModalScreen() {
             Alerts('Ukuran gambar ' + Math.floor(image.fileSize / 1024 / 1024) + 'MB melebihi 1MB', 'error');
             return null;
         }
-        const fileName = `produk_${Date.now()}.${fileExt}`;
+        const fileName = `${name}_${Date.now()}.${fileExt}`;
         try {
             const { error } = await supabase.storage
                 .from('mawam')
@@ -171,11 +245,11 @@ export default function ModalScreen() {
         } catch (error) {
             console.log(error);
             Alerts('Upload gagal', 'error');
-            return gambarDefault;
+            return imageDefault;
         }
     };
 
-    const handlePickAndUpload = async () => {
+    const handlePickAndUpload = async (index = -1) => {
         if (processing) return;
         setProcessing(true);
         try {
@@ -193,8 +267,37 @@ export default function ModalScreen() {
             const converted = await convertToWebp(image);
 
             if (converted) {
-                setImageUpload(converted.uri);
-                setnewImage(converted);
+                if (index != -1) {
+                    converted.old = imageUploads[index];
+                    let old = converted.old;
+                    setnewImage((prev: any) => {
+                        return prev ? prev.filter((item: any) => {
+                            if (item.uri == converted.old) {
+                                old = item.old
+                            }
+                            return item.uri != converted.old
+                        }) : null
+                    })
+                    converted.old = old;
+                    setImageUploads(imageUploads.map((item, i) => {
+                        return index == i ? converted.uri : item
+                    }
+                    ));
+                } else {
+                    setImageUploads((prev) => {
+                        return [...prev, converted.uri]
+                    }
+                    );
+                }
+                setnewImage((prev: any) => {
+                    if (prev) {
+                        return [...prev, converted]
+                    }
+                    else {
+                        return [converted]
+                    }
+                }
+                );
             }
         } finally {
             setLoadingUI(false);
@@ -213,59 +316,71 @@ export default function ModalScreen() {
             return;
         }
         setSubmitForm(true);
-        const url = newImage && await uploadImage(newImage) || form.gambar_produk || datas?.gambar_produk || gambarDefault;
-        const deleteLama = isEdit && url != datas?.gambar_produk && await deleteImage(datas?.gambar_produk) || true;
-        if (deleteLama && url) {
-            try {
-                const { data: toko } = await supabase
-                    .from('mawam_toko')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .single();
+        const up = await uploadImages(newImage);
+        if (imageDelete) {
+            for (const item of imageDelete) {
+                console.log('Delete', item)
+                deleteImage(item);
+            }
+        }
+        const gambar = up && typeof up == 'object' ? up.filter((_, index) => {
+            return index == 0
+        })[0] : null;
+        const albums = up && typeof up == 'object' ? up.filter((_, index) => {
+            return index != 0
+        }) : null;
 
-                const { data, error } = isEdit ?
-                    await supabase
-                        .from('mawam_produk')
-                        .update([
-                            {
-                                ...form,
-                                toko_id: toko ? toko.id : form.toko_id,
-                                gambar_produk: url,
-                            }
-                        ]).eq('id', id).select().single()
-                    :
-                    await supabase
-                        .from('mawam_produk')
-                        .insert([
-                            {
-                                ...form,
-                                toko_id: toko ? toko.id : form.toko_id,
-                                gambar_produk: url,
-                            }
-                        ]).select().single();
+        try {
+            const { data: toko } = await supabase
+                .from('mawam_toko')
+                .select('id')
+                .eq('user_id', user.id)
+                .single();
 
-                if (error) {
-                    Alerts('Gagal Simpan Data: ' + error.message, 'error');
-                } else {
-                    Alerts('Berhasil ' + (isEdit ? 'diedit' : 'ditambahkan'), 'success');
-
-                    if (data) {
-                        if (isEdit) {
-                            router.dismissAll();
-                            router.navigate('/produk?aksi=edit&id=' + data.id);
-                        } else {
-                            router.dismissAll();
-                            router.navigate('/produk?aksi=tambah&id=' + data.id);
+            const { data, error } = isEdit ?
+                await supabase
+                    .from('mawam_produk')
+                    .update([
+                        {
+                            ...form,
+                            toko_id: toko ? toko.id : form.toko_id,
+                            gambar_produk: gambar,
+                            album: albums
                         }
+                    ]).eq('id', id).select().single()
+                :
+                await supabase
+                    .from('mawam_produk')
+                    .insert([
+                        {
+                            ...form,
+                            toko_id: toko ? toko.id : form.toko_id,
+                            gambar_produk: gambar,
+                            album: albums
+                        }
+                    ]).select().single();
+
+            if (error) {
+                Alerts('Gagal Simpan Data: ' + error.message, 'error');
+            } else {
+                Alerts('Berhasil ' + (isEdit ? 'diedit' : 'ditambahkan'), 'success');
+
+                if (data) {
+                    if (isEdit) {
+                        router.dismissAll();
+                        router.navigate('/produk?aksi=edit&id=' + data.id);
+                    } else {
+                        router.dismissAll();
+                        router.navigate('/produk?aksi=tambah&id=' + data.id);
                     }
                 }
             }
-            catch (error) {
-                console.log(error);
-                Alerts('Gagal menyimpan data', 'error');
-            } finally {
-                setSubmitForm(false);
-            }
+        }
+        catch (error) {
+            console.log(error);
+            Alerts('Gagal menyimpan data', 'error');
+        } finally {
+            setSubmitForm(false);
         }
     };
 
@@ -312,13 +427,14 @@ export default function ModalScreen() {
             form.berat_per_unit !== initialForm.berat_per_unit ||
             form.deskripsi !== initialForm.deskripsi ||
             form.gambar_produk !== initialForm.gambar_produk ||
-            newImage
+            newImage || imageDelete ||
+            form.album !== initialForm.album
         );
     };
 
     useEffect(() => {
         if (!isEdit || !data) return;
-        setImageUpload(data?.gambar_produk ?? gambarDefault);
+        setImageUploads([data?.gambar_produk, ...data?.album]);
         const init = {
             toko_id: data?.toko_id || null,
             nama_produk: data?.nama_produk || '',
@@ -329,6 +445,7 @@ export default function ModalScreen() {
             berat_per_unit: data?.berat_per_unit || '',
             deskripsi: data?.deskripsi || '',
             gambar_produk: data?.gambar_produk,
+            album: data?.album,
         };
         setForm(init);
         setInitialForm(init);
@@ -355,6 +472,7 @@ export default function ModalScreen() {
 
     return (
         <React.Fragment>
+            <ConfirmModal visible={pendingImageDelete !== null} title="Hapus gambar?" message="Gambar ini akan dihapus dari produk." confirmText="Hapus" variant="destructive" onCancel={() => setPendingImageDelete(null)} onConfirm={async () => { if (!pendingImageDelete) return; const item = pendingImageDelete; setImageDelete(imageUploads.filter(fil => fil === item)); setImageUploads(imageUploads.filter(fil => fil !== item)); if (newImage) setnewImage(newImage.filter((fil: any) => fil.uri !== item)); setPendingImageDelete(null); }} />
             <Stack.Screen options={{ title: isEdit ? 'Edit Produk' : 'Tambah Produk' }} />
             {submitForm ? <View style={{
                 justifyContent: 'center',
@@ -375,48 +493,126 @@ export default function ModalScreen() {
                 style={{ flex: 1 }}
             >
                 <View style={styles.container}>
-                    <BackgroundImage
-                        source={{
-                            uri: imageUpload && imageUpload !== '' ? imageUpload : gambarDefault
-                        }}
-                        bgStyle={{ filter: `blur(10px) brightness(0.9)`, objectFit: 'cover', blurRadius: 10 }}
-
-                        style={{ width: '100%', height: 250, marginBottom: 20, borderRadius: 10, overflow: 'hidden', }}>
-                        <ImageLoad
-                            source={{
-                                uri: imageUpload && imageUpload !== '' ? imageUpload : gambarDefault
-                            }}
-                            contentFit="contain"
-                            transition={300}
-                            style={styles.image}
-                        />
-                    </BackgroundImage>
-                    <ThemedText style={styles.label}>Gambar Produk</ThemedText>
-                    <View style={{ flexDirection: 'row', height: 40, marginBottom: 12 }}>
-
-                        {loadingUI ? (<ThemedView style={{ padding: 8, borderRadius: 10, backgroundColor: iconBg, borderWidth: 1, borderColor: iconColor, marginRight: 10, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', height: 40, marginBottom: 0, justifyContent: 'space-between' }}>
+                        <ThemedText style={styles.label}>Gambar Produk</ThemedText>
+                        {loadingUI ? (<ThemedView style={{ padding: 4, borderRadius: 8, backgroundColor: iconBg, borderWidth: 1, borderColor: iconColor, marginRight: 8, justifyContent: 'space-between', flexDirection: 'row', gap: 2, alignItems: 'center' }}>
                             <ActivityIndicator size="small" color={iconColor} />
-                        </ThemedView>) : (<TouchableOpacity onPress={handlePickAndUpload}>
-                            <ThemedView style={{ padding: 10, borderRadius: 10, backgroundColor: iconBg, borderWidth: 1, borderColor: iconColor, marginRight: 10, justifyContent: 'center', alignItems: 'center' }}>
-                                <Ionicons name="cloud-upload" size={16} color={iconColor} />
+                            <ThemedText>Memuat</ThemedText>
+                        </ThemedView>) : (<TouchableOpacity onPress={() => {
+                            handlePickAndUpload(imageUploads[0] == imageDefault ? 0 :-1)
+                        }}
+                        >
+                            <ThemedView style={{ padding: 4, borderRadius: 8, backgroundColor: iconBg, borderWidth: 1, borderColor: iconColor, marginRight: 8, justifyContent: 'space-between', flexDirection: 'row', gap: 1, alignItems: 'center' }}>
+                                <Ionicons name="add" size={16} color={iconColor} />
+                                <ThemedText>Gambar</ThemedText>
                             </ThemedView>
                         </TouchableOpacity>)}
-                        <ThemedInput
-                            placeholder="Upload / Masukan URL Gambar"
-                            value={form.gambar_produk}
-                            onChangeText={(text: string) => {
-                                setForm({ ...form, gambar_produk: text });
-                                setImageUpload(text);
-                            }}
-                            style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                        />
+                    </View>
+                    <View style={{ position: 'relative', marginBottom: 12 }}>
+                        <Carousel
+                            ref={carouselRef}
+                            onSnapToItem={(index) => setActive(index)}
+                            width={width < 500 ? width - 20 : 500 - 20}
+                            height={250}
+                            autoPlay={imageUploads.length > 1 && isAutoPlay}
+                            data={imageUploads}
+                            autoPlayInterval={6000}
+                            style={{ borderRadius: 10, overflow: 'hidden' }}
+                            enabled={imageUploads.length > 1}
+                            renderItem={({ item, index }) => (
+                                <View>
+                                    <BackgroundImage style={{ width: '100%', height: 250, marginBottom: 0, overflow: 'hidden', backgroundColor: '#c3c2c233', position: 'relative' }}
+                                        source={{
+                                            uri:
+                                                (item?.startsWith('https://') ?
+                                                    'https://cros-image.vercel.app/?quest=' + encodeURIComponent(item) + '&size=50' : item) ||
+                                                imageDefault
+                                        }}
+                                        bgStyle={{ filter: `blur(10px) brightness(0.9)`, objectFit: 'cover', blurRadius: 10 }}
+                                    >
+                                        <ImageLoad
+                                            contentFit="contain"
+                                            source={{
+                                                uri:
+                                                    item && item !== '' ? item : imageDefault
+                                                // data.gambar_produk ||
+                                                // imageDefault
+                                            }}
+                                            style={[styles.image, { pointerEvents: 'none' }]}
 
-                        {form.gambar_produk !== '' && (
-                            <Image
-                                source={{ uri: form.gambar_produk }}
-                                style={{ height: 200, borderRadius: 10 }}
-                            />
-                        )}
+                                            onLoad={(e: any) => {
+
+                                                let w = 0;
+                                                let h = 0;
+
+                                                if (e?.source) {
+                                                    // Expo Image (lebih aman)
+                                                    w = e.source.width ?? 0;
+                                                    h = e.source.height ?? 0;
+                                                }
+
+                                            }}
+                                        />
+                                        <TouchableOpacity
+                                            style={{
+                                                position: 'absolute',
+                                                right: 10,
+                                                top: 10,
+                                                padding: 8,
+                                            }}
+                                            onPress={() => {
+                                                handlePickAndUpload(index);
+                                                setIsAutoPlay(false);
+
+                                            }}
+                                        >
+                                            <Ionicons
+                                                name="cloud-upload-outline"
+                                                size={24}
+                                                color="#fff"
+                                            />
+                                        </TouchableOpacity>
+                                        {index !== 0 && <TouchableOpacity
+                                            style={{
+                                                position: 'absolute',
+                                                right: 10,
+                                                top: 40,
+                                                padding: 8,
+                                            }}
+                                            onPress={() => setPendingImageDelete(item)}
+                                        >
+                                            <Ionicons
+                                                name="trash-outline"
+                                                size={24}
+                                                color="#fff"
+                                            />
+                                        </TouchableOpacity>}
+                                        {imageUploads.length > 1 && <ThemedView style={{ position: 'absolute', paddingHorizontal: 8, borderRadius: 8, bottom: 10, right: 10 }}>
+                                            <ThemedText style={{ fontSize: 11 }}>{index + 1}/{imageUploads.length}</ThemedText>
+                                        </ThemedView>}
+                                    </BackgroundImage>
+                                </View>
+                            )}
+                        />
+                        {imageUploads.length > 1 && <View style={{ bottom: 0, padding: 8, position: 'absolute', alignItems: 'center', width: '100%' }}>
+                            <View style={{ flexDirection: 'row', gap: 1 }}>
+                                {imageUploads.map((_, i) => (
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            goToIndex(i)
+                                        }}
+                                        key={i}
+                                    >
+                                        <ThemedView style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: 4,
+                                            opacity: active === i ? 1 : 0.3,
+                                        }} />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>}
                     </View>
 
                     <ThemedInput
@@ -477,10 +673,10 @@ export default function ModalScreen() {
                         placeholder="Jumlah Berat"
                         keyboardType="numeric"
                         value={form.berat_per_unit}
-                        onChangeText={(text: string) =>
+                        onChangeText={(text: number) =>
                             setForm({
                                 ...form,
-                                berat_per_unit: text.replace(/\D/g, ""),
+                                berat_per_unit: text,
                             })
                         }
                         style={styles.input}
@@ -491,7 +687,7 @@ export default function ModalScreen() {
                         placeholder="Jumlah Stok"
                         value={form.stok}
                         keyboardType="numeric"
-                        onChangeText={(text: string) => setForm({ ...form, stok: text.replace(/\D/g, "") })}
+                        onChangeText={(text: number) => setForm({ ...form, stok: text })}
                         style={styles.input}
                     />
 
