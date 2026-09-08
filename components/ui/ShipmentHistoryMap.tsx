@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -22,9 +22,9 @@ type LocationHistory = {
   created_at?: string | null;
 };
 
-const DEFAULT_CENTER: [number, number] = [-10.1772, 123.607];
+type LatLng = [number, number];
 
-function FitRoute({ positions }: { positions: [number, number][] }) {
+function FitRoute({ positions }: { positions: LatLng[] }) {
   const map = useMap();
 
   useEffect(() => {
@@ -39,25 +39,93 @@ function FitRoute({ positions }: { positions: [number, number][] }) {
 }
 
 export default function ShipmentHistoryMap({ locations }: { locations: LocationHistory[] }) {
-  const validLocations = locations.filter(
-    (item) =>
-      item.latitude != null &&
-      item.longitude != null &&
-      Number.isFinite(Number(item.latitude)) &&
-      Number.isFinite(Number(item.longitude))
+  const validLocations = useMemo(
+    () =>
+      locations.filter(
+        (item) =>
+          item.latitude != null &&
+          item.longitude != null &&
+          Number.isFinite(Number(item.latitude)) &&
+          Number.isFinite(Number(item.longitude))
+      ),
+    [locations]
   );
 
-  // Jangan tampilkan peta jika belum ada satu pun koordinat perjalanan.
   if (validLocations.length === 0) return null;
 
   const positions = validLocations.map(
-    (item) => [Number(item.latitude), Number(item.longitude)] as [number, number]
+    (item) => [Number(item.latitude), Number(item.longitude)] as LatLng
   );
+
+  return <ShipmentRoadMap locations={validLocations} positions={positions} />;
+}
+
+function ShipmentRoadMap({
+  locations,
+  positions,
+}: {
+  locations: LocationHistory[];
+  positions: LatLng[];
+}) {
+  const [route, setRoute] = useState<LatLng[]>([]);
+  const [routeError, setRouteError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRoute() {
+      setRouteError(false);
+      setRoute([]);
+
+      if (positions.length < 2) return;
+
+      try {
+        const coordinates = positions
+          .map(([latitude, longitude]) => `${longitude},${latitude}`)
+          .join(";");
+
+        const response = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson&steps=false`
+        );
+
+        if (!response.ok) throw new Error(`OSRM HTTP ${response.status}`);
+
+        const data = await response.json();
+        const geometry = data?.routes?.[0]?.geometry?.coordinates;
+
+        if (!Array.isArray(geometry) || geometry.length < 2) {
+          throw new Error("Rute jalan tidak tersedia");
+        }
+
+        const roadRoute = geometry
+          .filter(
+            (point: unknown) =>
+              Array.isArray(point) &&
+              point.length >= 2 &&
+              Number.isFinite(Number(point[0])) &&
+              Number.isFinite(Number(point[1]))
+          )
+          .map((point: [number, number]) => [Number(point[1]), Number(point[0])] as LatLng);
+
+        if (!cancelled) setRoute(roadRoute);
+      } catch (error) {
+        console.warn("Shipment route error:", error);
+        if (!cancelled) setRouteError(true);
+      }
+    }
+
+    loadRoute();
+    return () => {
+      cancelled = true;
+    };
+  }, [positions]);
+
+  const displayedRoute = route.length > 1 ? route : positions;
 
   return (
     <View style={styles.container}>
       <MapContainer
-        center={positions[positions.length - 1] ?? DEFAULT_CENTER}
+        center={positions[positions.length - 1]}
         zoom={13}
         scrollWheelZoom
         style={styles.map as any}
@@ -69,26 +137,51 @@ export default function ShipmentHistoryMap({ locations }: { locations: LocationH
           maxZoom={20}
         />
 
-        <FitRoute positions={positions} />
+        <FitRoute positions={displayedRoute} />
 
         {positions.length > 1 && (
-          <Polyline positions={positions} pathOptions={{ weight: 5, opacity: 0.85 }} />
+          <Polyline
+            positions={displayedRoute}
+            pathOptions={{
+              weight: 5,
+              opacity: route.length > 1 ? 0.9 : 0.65,
+              ...(route.length < 2 && routeError ? { dashArray: "8 8" } : {}),
+            }}
+          />
         )}
 
-        {validLocations.map((location, index) => (
+        {locations.map((location, index) => (
           <Marker key={String(location.id)} position={positions[index]}>
             <Popup>
               <div>
                 <strong>{location.drop_point || "Lokasi pengiriman"}</strong>
                 {location.kota ? <div>{location.kota}</div> : null}
                 {location.status ? <div>{location.status}</div> : null}
-                {location.created_at ? <div>{new Date(location.created_at).toLocaleString("id-ID")}</div> : null}
+                {location.created_at ? (
+                  <div>{new Date(location.created_at).toLocaleString("id-ID")}</div>
+                ) : null}
                 {location.catatan ? <div>{location.catatan}</div> : null}
               </div>
             </Popup>
           </Marker>
         ))}
       </MapContainer>
+
+      {positions.length > 1 && !routeError && route.length < 2 && (
+        <View pointerEvents="none" style={styles.routeBadge}>
+          <View style={styles.badge}>
+            <span style={{ fontSize: 12 }}>Menghitung rute perjalanan...</span>
+          </View>
+        </View>
+      )}
+
+      {routeError && positions.length > 1 && (
+        <View pointerEvents="none" style={styles.routeBadge}>
+          <View style={styles.badge}>
+            <span style={{ fontSize: 12 }}>Rute jalan tidak tersedia</span>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -106,5 +199,18 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 320,
     borderRadius: 12,
+  },
+  routeBadge: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    top: 12,
+    alignItems: "center",
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#ffffffdd",
   },
 });
