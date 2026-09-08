@@ -7,7 +7,7 @@ import { useTheme } from "@/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import ShipmentHistoryMap from "@/components/ui/ShipmentHistoryMap";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View, Linking } from "react-native";
 import * as Clipboard from 'expo-clipboard';
 import Alerts from "@/constants/Alerts";
@@ -23,6 +23,14 @@ type TrackingEvent = {
   date?: string;
   time?: string;
   location?: string;
+};
+
+type TimelineEvent = {
+  id: string;
+  status: string;
+  catatan?: string | null;
+  location?: string | null;
+  created_at?: string | null;
 };
 
 const formatDateTime = (value?: string) => {
@@ -47,6 +55,7 @@ export default function LacakPesananScreen() {
   const iconColor = Colors[colorScheme].icon;
   const tint = Colors["light"].tint;
   const tintText = Colors["dark"].tint;
+  const [order, setOrder] = useState<any>(null);
   const [shipment, setShipment] = useState<any>(null);
   const [tracking, setTracking] = useState<any>(null);
   const [locationHistory, setLocationHistory] = useState<any[]>([]);
@@ -57,21 +66,19 @@ export default function LacakPesananScreen() {
   const loadTracking = useCallback(async (refresh = false) => {
     if (!orderId || !user) return;
 
-    if (refresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
     setError(null);
 
-    const { data: order, error: shipmentError } = await supabase
+    const { data: orderData, error: shipmentError } = await supabase
       .from("mawam_orders")
-      .select("mawam_pengiriman(*)")
+      .select("id, invoice, status, created_at, mawam_pengiriman(*)")
       .eq("id", orderId)
       .single();
 
-    const delivery = order?.mawam_pengiriman?.[0];
-    if (shipmentError || !delivery) {
+    const delivery = orderData?.mawam_pengiriman?.[0];
+    if (shipmentError || !orderData || !delivery) {
+      setOrder(orderData ?? null);
       setShipment(null);
       setTracking(null);
       setLocationHistory([]);
@@ -81,7 +88,9 @@ export default function LacakPesananScreen() {
       return;
     }
 
+    setOrder(orderData);
     setShipment(delivery);
+
     const { data: savedHistory, error: historyError } = await supabase
       .from("mawam_pengiriman_lokasi")
       .select("id, kota, drop_point, status, catatan, latitude, longitude, created_at")
@@ -89,12 +98,13 @@ export default function LacakPesananScreen() {
       .order("created_at", { ascending: false });
     if (historyError) console.warn("Riwayat lokasi:", historyError.message);
     setLocationHistory(savedHistory ?? []);
+
     const courier = String(delivery.courier_code ?? "").trim().toLowerCase();
     const waybill = String(delivery.tracking_number ?? delivery.resi ?? "").trim();
 
     if (!courier || !waybill || waybill.toLowerCase().startsWith("resi-test-")) {
       setTracking(null);
-      setError("Nomor resi belum diinput oleh penjual.");
+      setError(waybill ? "Pelacakan kurir belum tersedia untuk resi ini." : "Nomor resi belum diinput oleh penjual.");
       setLoading(false);
       setRefreshing(false);
       return;
@@ -146,6 +156,32 @@ export default function LacakPesananScreen() {
   const deliveryStatus = latestLocation?.status ?? tracking?.status ?? tracking?.tracking_status ?? tracking?.latest_status ?? "Status belum tersedia";
   const waybill = shipment?.tracking_number ?? shipment?.resi;
 
+  const timelineEvents = useMemo<TimelineEvent[]>(() => {
+    const shipmentEvents: TimelineEvent[] = locationHistory.map((event) => ({
+      id: String(event.id),
+      status: String(event.status ?? "Pembaruan pengiriman"),
+      catatan: event.catatan,
+      location: event.drop_point && event.kota ? `${event.drop_point}, ${event.kota}` : event.drop_point ?? event.kota ?? null,
+      created_at: event.created_at,
+    }));
+
+    if (order?.created_at) {
+      shipmentEvents.push({
+        id: `order-created-${order.id}`,
+        status: "Pesanan dibuat",
+        catatan: "Pesanan berhasil dibuat.",
+        location: null,
+        created_at: order.created_at,
+      });
+    }
+
+    return shipmentEvents.sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [locationHistory, order]);
+
   function getCourierWebsite(courier?: string) {
     if (!courier) return null;
     const c = courier.toLowerCase();
@@ -188,8 +224,7 @@ export default function LacakPesananScreen() {
                 <ThemedText style={{ color: tintText, fontWeight: '700' }}>Salin Resi</ThemedText>
               </TouchableOpacity>
               {courierWebsite && waybill && <TouchableOpacity style={[styles.reload, { backgroundColor: tint }]} onPress={() => {
-                const url = `${courierWebsite}`;
-                Linking.openURL(url).catch(() => setError('Tidak dapat membuka situs kurir'));
+                Linking.openURL(courierWebsite).catch(() => setError('Tidak dapat membuka situs kurir'));
               }}>
                 <ThemedText style={{ color: tintText, fontWeight: '700' }}>Lacak di Website Kurir</ThemedText>
               </TouchableOpacity>}
@@ -206,10 +241,10 @@ export default function LacakPesananScreen() {
             {latestLocation.catatan && <ThemedText style={styles.muted}>{latestLocation.catatan}</ThemedText>}
           </ThemedView>}
 
-          {error && locationHistory.length === 0 ? <ThemedView style={styles.card}>
+          {error && timelineEvents.length === 0 ? <ThemedView style={styles.card}>
             <View style={styles.row}>
               <Ionicons name="information-circle-outline" size={28} color={iconColor} />
-              <View>
+              <View style={styles.flex}>
                 <ThemedText style={[styles.title, { marginTop: 8 }]}>Pelacakan belum tersedia</ThemedText>
                 <ThemedText style={styles.muted}>{error}</ThemedText>
                 <TouchableOpacity style={[styles.reload, { backgroundColor: tint }]} onPress={() => void loadTracking()}>
@@ -217,18 +252,20 @@ export default function LacakPesananScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-
           </ThemedView> : <ThemedView style={styles.card}>
             <ThemedText style={styles.title}>Riwayat Pengiriman</ThemedText>
             {locationHistory.length > 0 && <ShipmentHistoryMap locations={[...locationHistory].reverse()} />}
-            {locationHistory.length > 0 ? locationHistory.map((event, index) => (
+            {timelineEvents.length > 0 ? timelineEvents.map((event, index) => (
               <View key={event.id} style={styles.event}>
-                <View style={styles.timeline}><View style={[styles.dot, { backgroundColor: index === 0 ? tint : iconColor }]} />{index < locationHistory.length - 1 && <View style={styles.line} />}</View>
+                <View style={styles.timeline}>
+                  <View style={[styles.dot, { backgroundColor: index === 0 ? tint : iconColor }]} />
+                  {index < timelineEvents.length - 1 && <View style={styles.line} />}
+                </View>
                 <View style={styles.flex}>
                   <ThemedText style={{ fontWeight: "700" }}>{event.status}</ThemedText>
-                  <ThemedText style={styles.muted}>{event.drop_point}, {event.kota}</ThemedText>
+                  {event.location && <ThemedText style={styles.muted}>{event.location}</ThemedText>}
                   {event.catatan && <ThemedText style={styles.muted}>{event.catatan}</ThemedText>}
-                  <ThemedText style={styles.muted}>{formatDateTime(event.created_at)}</ThemedText>
+                  <ThemedText style={styles.muted}>{formatDateTime(event.created_at ?? undefined)}</ThemedText>
                 </View>
               </View>
             )) : events.length === 0 ? <ThemedText style={styles.muted}>Belum ada pembaruan perjalanan paket.</ThemedText> : events.map((event, index) => (
